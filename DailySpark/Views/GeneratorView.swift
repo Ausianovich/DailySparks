@@ -58,8 +58,30 @@ struct GeneratorView: View {
                 }
                 .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
                 Section("Context") {
-                    TextField("Situation", text: $situation)
-                    TextField("Audience", text: $audience)
+                    ZStack(alignment: .trailing) {
+                        TextField("Situation", text: $situation, axis: .vertical)
+                            .lineLimit(1...4)
+                        if !situation.isEmpty {
+                            Button(action: { situation = "" }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.trailing, 2)
+                        }
+                    }
+                    ZStack(alignment: .trailing) {
+                        TextField("Audience", text: $audience, axis: .vertical)
+                            .lineLimit(1...4)
+                        if !audience.isEmpty {
+                            Button(action: { audience = "" }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.trailing, 2)
+                        }
+                    }
                     Button(action: generate) {
                         if isLoading { ProgressView() } else { Text("Generate Sparks") }
                     }.disabled(isLoading || situation.isEmpty || audience.isEmpty)
