@@ -15,10 +15,14 @@ struct TrainingSessionDetailView: View {
             }
 
             Section("Metrics") {
-                HStack { Text("Turns"); Spacer(); Text("\(session.metrics.turns)").foregroundStyle(.secondary) }
-                HStack { Text("Short answers"); Spacer(); Text("\(session.metrics.shortAnswersCount)").foregroundStyle(.secondary) }
-                HStack { Text("Open questions"); Spacer(); Text("\(session.metrics.openQuestionsCount)").foregroundStyle(.secondary) }
-                HStack { Text("Hints shown"); Spacer(); Text("\(session.metrics.hintsShown)").foregroundStyle(.secondary) }
+                LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                    MetricTile(title: "Turns", value: String(session.metrics.turns), color: .accentColor)
+                    MetricTile(title: "Short answers", value: String(session.metrics.shortAnswersCount), color: .orange)
+                    MetricTile(title: "Open questions", value: String(session.metrics.openQuestionsCount), color: .blue)
+                    MetricTile(title: "Hints shown", value: String(session.metrics.hintsShown), color: .teal)
+                }
+                .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                .listRowBackground(Color.clear)
             }
 
             if let fb = session.feedback {
@@ -93,5 +97,27 @@ private struct ChatBubbleRow: View {
         #if canImport(UIKit)
         UIPasteboard.general.string = s
         #endif
+    }
+}
+
+private struct MetricTile: View {
+    let title: String
+    let value: String
+    let color: Color
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.title3)
+                .bold()
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, minHeight: 72, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(color.opacity(0.12))
+        )
     }
 }
