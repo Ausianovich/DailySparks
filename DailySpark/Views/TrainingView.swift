@@ -6,9 +6,7 @@ struct TrainingView: View {
     let personaLabel: String
     @State private var input: String = ""
     @FocusState private var inputFocused: Bool
-    @State private var transcript: [DialogueTurn] = [
-        .init(role: .ai, text: "Hey! How’s your evening going so far?")
-    ]
+    @State private var transcript: [DialogueTurn] = []
     @State private var isStreaming = false
     @State private var errorMessage: String?
     @State private var metrics = TrainingMetrics()
@@ -125,6 +123,17 @@ struct TrainingView: View {
         .onChange(of: showEndSheet) { open in
             // If user closed the summary sheet after it was shown, exit training view
             if open == false, feedback != nil { dismiss() }
+        }
+        .onAppear {
+            // Occasionally let AI open; otherwise focus input for the user to start
+            if transcript.isEmpty && !isStreaming {
+                if Bool.random() {
+                    isStreaming = true
+                    streamFromAI()
+                } else {
+                    inputFocused = true
+                }
+            }
         }
     }
 
