@@ -31,19 +31,16 @@ struct TrainingSessionDetailView: View {
             }
 
             Section("Transcript") {
-                VStack(alignment: .leading, spacing: 8) {
-                    ForEach(session.transcript, id: \.id) { turn in
-                        HStack(alignment: .top, spacing: 8) {
-                            Text(prefix(for: turn.role)).font(.caption).foregroundStyle(.secondary).frame(width: 48, alignment: .leading)
-                            Text(MarkdownHelper.attributed(from: turn.text))
-                                .padding(8)
-                                .background(RoundedRectangle(cornerRadius: 8).fill(turn.role == .user ? Color.accentColor.opacity(0.1) : Color.secondary.opacity(0.12)))
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                            Spacer(minLength: 0)
-                        }
+                VStack(spacing: 10) {
+                    ForEach(Array(session.transcript.enumerated()), id: \.element.id) { index, turn in
+                        let isUser = (turn.role == .user)
+                        let prevRole: DialogueTurn.Role? = index > 0 ? session.transcript[index-1].role : nil
+                        let showName = prevRole != turn.role
+                        ChatBubbleRow(text: turn.text, isUser: isUser, name: prefix(for: turn.role), showName: showName)
+                            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                            .listRowSeparator(.hidden)
                     }
                 }
-                .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
             }
         }
         .navigationTitle("Session")
@@ -57,3 +54,44 @@ struct TrainingSessionDetailView: View {
     private func prefix(for role: DialogueTurn.Role) -> String { role == .user ? "You" : (role == .ai ? "AI" : "Hint") }
 }
 
+private struct ChatBubbleRow: View {
+    let text: String
+    let isUser: Bool
+    let name: String
+    let showName: Bool
+
+    var body: some View {
+        VStack(alignment: isUser ? .trailing : .leading, spacing: 4) {
+            if showName {
+                Text(name)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
+            }
+            HStack {
+                if isUser { Spacer(minLength: 40) }
+                Text(MarkdownHelper.attributed(from: text))
+                    .font(.body)
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .fill(isUser ? Color.accentColor : Color.secondary.opacity(0.15))
+                    )
+                    .foregroundStyle(isUser ? Color.white : Color.primary)
+                    .contextMenu {
+                        Button(action: { copy(text) }) { Label("Copy", systemImage: "doc.on.doc") }
+                        ShareLink(item: text) { Label("Share", systemImage: "square.and.arrow.up") }
+                    }
+                if !isUser { Spacer(minLength: 40) }
+            }
+        }
+        .padding(.horizontal, 6)
+    }
+
+    private func copy(_ s: String) {
+        #if canImport(UIKit)
+        UIPasteboard.general.string = s
+        #endif
+    }
+}

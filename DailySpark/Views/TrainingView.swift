@@ -16,6 +16,8 @@ struct TrainingView: View {
     @State private var feedback: FeedbackSummary? = nil
     @State private var suggestedLesson: MicroLesson? = nil
     @State private var recentRepairs: [String] = []
+    @State private var streamBuffer: String = ""
+    @State private var lastStreamFlush: Date = .now
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
@@ -26,8 +28,10 @@ struct TrainingView: View {
                 ScrollView(.vertical) {
                     LazyVStack(alignment: .leading, spacing: 8) {
                         ForEach(transcript.reversed()) { turn in
-                            let thinking = isStreaming && turn.role == .ai && turn.text.isEmpty && (turn.id == transcript.last?.id)
-                            ChatMessageRow(prefix: prefix(for: turn.role), text: turn.text, isThinking: thinking)
+                            let isLastAIRow = (turn.role == .ai && turn.id == transcript.last?.id)
+                            let thinking = isStreaming && isLastAIRow && turn.text.isEmpty
+                            let useMarkdown = !(isStreaming && isLastAIRow)
+                            ChatMessageRow(prefix: prefix(for: turn.role), text: turn.text, isThinking: thinking, useMarkdown: useMarkdown)
                                 .id(turn.id)
                         }
                     }
@@ -172,9 +176,23 @@ struct TrainingView: View {
             do {
                 let stream = AIClient.shared.streamTrainingReply(persona: persona, context: context, transcript: contextTranscript)
                 for try await delta in stream {
-                    await MainActor.run {
-                        transcript[aiIndex].text.append(delta)
+                    // Throttle UI updates: buffer small deltas, flush at ~20Hz
+                    streamBuffer.append(delta)
+                    let now = Date()
+                    if now.timeIntervalSince(lastStreamFlush) > 0.05 || streamBuffer.count > 24 {
+                        let chunk = streamBuffer
+                        streamBuffer.removeAll(keepingCapacity: true)
+                        lastStreamFlush = now
+                        await MainActor.run {
+                            transcript[aiIndex].text.append(contentsOf: chunk)
+                        }
                     }
+                }
+                // Flush remainder
+                if !streamBuffer.isEmpty {
+                    let chunk = streamBuffer
+                    streamBuffer.removeAll(keepingCapacity: true)
+                    await MainActor.run { transcript[aiIndex].text.append(contentsOf: chunk) }
                 }
             } catch {
                 await MainActor.run { errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription }
@@ -309,6 +327,7 @@ private struct ChatMessageRow: View {
     let prefix: String
     let text: String
     var isThinking: Bool = false
+    var useMarkdown: Bool = true
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
             Text(prefix)
@@ -319,10 +338,16 @@ private struct ChatMessageRow: View {
                 TypingIndicatorBubble()
                     .frame(maxWidth: .infinity, alignment: .leading)
             } else {
-                Text(MarkdownHelper.attributed(from: text))
-                    .padding(10)
-                    .background(RoundedRectangle(cornerRadius: 10).fill(.secondary.opacity(0.15)))
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                Group {
+                    if useMarkdown {
+                        Text(MarkdownHelper.attributed(from: text))
+                    } else {
+                        Text(text)
+                    }
+                }
+                .padding(10)
+                .background(RoundedRectangle(cornerRadius: 10).fill(.secondary.opacity(0.15)))
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             Spacer(minLength: 0)
         }
