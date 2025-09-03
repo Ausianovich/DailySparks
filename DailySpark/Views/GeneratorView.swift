@@ -119,6 +119,7 @@ struct GeneratorView: View {
                 Text(errorMessage ?? "")
             })
         }
+            
     }
 
     private func generate() {

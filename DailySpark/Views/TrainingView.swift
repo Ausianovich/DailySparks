@@ -2,6 +2,8 @@ import SwiftUI
 import SwiftData
 
 struct TrainingView: View {
+    let scenarioId: String
+    let personaLabel: String
     @State private var input: String = ""
     @FocusState private var inputFocused: Bool
     @State private var transcript: [DialogueTurn] = [
@@ -18,7 +20,8 @@ struct TrainingView: View {
                 ScrollView(.vertical) {
                     LazyVStack(alignment: .leading, spacing: 8) {
                         ForEach(transcript.reversed()) { turn in
-                            ChatMessageRow(prefix: prefix(for: turn.role), text: turn.text)
+                            let thinking = isStreaming && turn.role == .ai && turn.text.isEmpty && (turn.id == transcript.last?.id)
+                            ChatMessageRow(prefix: prefix(for: turn.role), text: turn.text, isThinking: thinking)
                                 .id(turn.id)
                         }
                     }
@@ -33,21 +36,32 @@ struct TrainingView: View {
                         withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo(last, anchor: .bottom) }
                     }
                 }
+                .contentShape(Rectangle())
+                .onTapGesture { inputFocused = false }
             }
-            HStack {
-                TextField("Type your message…", text: $input)
+            HStack(alignment: .bottom, spacing: 8) {
+                TextField("Type your message…", text: $input, axis: .vertical)
+                    .lineLimit(1...3)
                     .textFieldStyle(.roundedBorder)
                     .focused($inputFocused)
-                    .submitLabel(.send)
-                    .onSubmit { send() }
+                    .submitLabel(.return) // show Return, not Send; Return inserts newline
                 if isStreaming { ProgressView().scaleEffect(0.8) }
-                Button("Send", action: send).disabled(input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isStreaming)
-            }.padding().background(.ultraThinMaterial)
+                Button(action: send) {
+                    Image(systemName: "paperplane.circle")
+                        .font(.system(size: 22, weight: .regular))
+                }
+                    .disabled(input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isStreaming)
+            }
+            .padding()
+            .background(.ultraThinMaterial)
         }
         .navigationTitle("Training")
+        .navigationBarTitleDisplayMode(.inline)
         .alert("Error", isPresented: .constant(errorMessage != nil), actions: {
             Button("OK") { errorMessage = nil }
         }, message: { Text(errorMessage ?? "") })
+        .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
     }
 
     private func scrollToBottom(_ proxy: ScrollViewProxy, animated: Bool = true) {
@@ -77,8 +91,8 @@ struct TrainingView: View {
         let aiIndex = transcript.count - 1
         errorMessage = nil
         Task {
-            let persona = "Colleague from another department, friendly and curious"
-            let context = "Corporate mixer"
+            let persona = personaLabel
+            let context = scenarioId == "corporate" ? "Corporate mixer" : "Light first date"
             do {
                 let stream = AIClient.shared.streamTrainingReply(persona: persona, context: context, transcript: contextTranscript)
                 for try await delta in stream {
@@ -97,19 +111,44 @@ struct TrainingView: View {
 private struct ChatMessageRow: View {
     let prefix: String
     let text: String
+    var isThinking: Bool = false
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
             Text(prefix)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .frame(width: 48, alignment: .leading)
-            Text(MarkdownHelper.attributed(from: text))
-                .padding(10)
-                .background(RoundedRectangle(cornerRadius: 10).fill(.secondary.opacity(0.15)))
-                .frame(maxWidth: .infinity, alignment: .leading)
+            if isThinking {
+                TypingIndicatorBubble()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                Text(MarkdownHelper.attributed(from: text))
+                    .padding(10)
+                    .background(RoundedRectangle(cornerRadius: 10).fill(.secondary.opacity(0.15)))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
             Spacer(minLength: 0)
         }
         .padding(.horizontal)
         .scaleEffect(x: 1, y: -1)
+    }
+}
+
+private struct TypingIndicatorBubble: View {
+    @State private var animate = false
+    var body: some View {
+        HStack(spacing: 6) {
+            Circle().frame(width: 6, height: 6).opacity(animate ? 1 : 0.2)
+            Circle().frame(width: 6, height: 6).opacity(animate ? 0.6 : 0.2)
+            Circle().frame(width: 6, height: 6).opacity(animate ? 0.3 : 0.2)
+        }
+        .foregroundStyle(.secondary)
+        .padding(10)
+        .background(RoundedRectangle(cornerRadius: 10).fill(.secondary.opacity(0.15)))
+        .onAppear {
+            withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) {
+                animate.toggle()
+            }
+        }
     }
 }

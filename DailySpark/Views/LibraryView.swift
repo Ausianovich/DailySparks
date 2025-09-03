@@ -36,6 +36,7 @@ struct LibraryView: View {
                 }
             }
             .navigationTitle("Library")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 NavigationLink(destination: SettingsView()) {
                     Image(systemName: "gear")
@@ -60,5 +61,6 @@ struct LessonDetailView: View {
             }.padding()
         }
         .navigationTitle("Lesson")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }

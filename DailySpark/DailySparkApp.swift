@@ -37,7 +37,7 @@ struct RootView: View {
         TabView {
             GeneratorView()
                 .tabItem { Label("Generator", systemImage: "sparkles") }
-            TrainingView()
+            TrainingSetupView()
                 .tabItem { Label("Training", systemImage: "bubble.left.and.text.bubble.right") }
             LibraryView()
                 .tabItem { Label("Library", systemImage: "book") }
