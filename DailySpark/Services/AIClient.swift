@@ -202,4 +202,53 @@ actor AIClient {
               let jsonData = content.data(using: .utf8) else { throw AIError.decoding }
         return try JSONDecoder().decode(AIFeedback.self, from: jsonData)
     }
+
+    // MARK: - Repair suggestions (non-streaming)
+    func generateRepairSuggestion(kind: String, transcript: [DialogueTurn], locale: String = "en", model: String = "4o-nano", avoid: [String] = []) async throws -> String {
+        let system = "You are a discreet conversation coach. Provide ONE concise line the user can say next. Keep it friendly, natural, and safe for casual conversation."
+        let lastTurns = transcript.suffix(8).map { t in
+            let role = (t.role == .user) ? "user" : (t.role == .ai ? "ai" : "hint")
+            return "\(role): \(t.text)"
+        }.joined(separator: "\n")
+        let instruction: String
+        switch kind.lowercased() {
+        case "rephrase": instruction = "Rephrase the user's last message to sound warmer and more open."
+        case "pivot": instruction = "Offer a gentle pivot line to a safe, light topic connected to the context."
+        case "open": instruction = "Propose one open question that invites a short story or preference."
+        default: instruction = "Propose a friendly, open follow-up line."
+        }
+        let avoidBlock: String = avoid.isEmpty ? "" : ("\nDo NOT repeat or closely paraphrase any of these lines:" + avoid.prefix(6).map { "\n• \($0)" }.joined())
+        let user = "Context locale=\(locale). Return only the line, no quotes, no prefix.\nGoal: \(instruction)\nTranscript:\n\(lastTurns)\(avoidBlock)"
+
+        var req = URLRequest(url: apiURL)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue(try authHeader(), forHTTPHeaderField: "Authorization")
+        let body: [String: Any] = [
+            "model": model,
+            "temperature": 0.6,
+            "presence_penalty": 0.6,
+            "frequency_penalty": 0.4,
+            "messages": [
+                ["role": "system", "content": system],
+                ["role": "user", "content": user]
+            ]
+        ]
+        req.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        let (data, response) = try await URLSession.shared.data(for: req)
+        if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+            if model == "4o-nano" {
+                return try await generateRepairSuggestion(kind: kind, transcript: transcript, locale: locale, model: "gpt-4o-mini", avoid: avoid)
+            }
+            let msg = String(data: data, encoding: .utf8) ?? ""
+            throw AIError.server(msg)
+        }
+        struct Choice: Decodable { let message: Msg }
+        struct Msg: Decodable { let role: String; let content: String }
+        struct Resp: Decodable { let choices: [Choice] }
+        let decoded = try JSONDecoder().decode(Resp.self, from: data)
+        let text = decoded.choices.first?.message.content.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return text
+    }
 }

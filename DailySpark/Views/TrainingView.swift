@@ -14,7 +14,9 @@ struct TrainingView: View {
     @State private var metrics = TrainingMetrics()
     @State private var showEndSheet = false
     @State private var isEnding = false
+    @State private var isRepairLoading = false
     @State private var feedback: FeedbackSummary? = nil
+    @State private var recentRepairs: [String] = []
 
     @Environment(\.modelContext) private var modelContext
 
@@ -43,11 +45,26 @@ struct TrainingView: View {
                 .contentShape(Rectangle())
                 .onTapGesture { inputFocused = false }
             }
+            // Repair Kit (above input)
+            HStack(spacing: 8) {
+                RepairChip(title: "Rephrase", recommended: recommendedRepair() == .rephrase) { repair(.rephrase) }
+                    .disabled(isStreaming || isRepairLoading)
+                RepairChip(title: "Pivot", recommended: recommendedRepair() == .pivot) { repair(.pivot) }
+                    .disabled(isStreaming || isRepairLoading)
+                RepairChip(title: "Open Q", recommended: recommendedRepair() == .open) { repair(.open) }
+                    .disabled(isStreaming || isRepairLoading)
+                if isRepairLoading { ProgressView().scaleEffect(0.8) }
+            }
+            .padding(.horizontal)
+            .padding(.bottom, 6)
+
             HStack(alignment: .bottom, spacing: 8) {
                 TextField("Type your message…", text: $input, axis: .vertical)
                     .lineLimit(1...3)
                     .textFieldStyle(.roundedBorder)
                     .focused($inputFocused)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled(true)
                     .submitLabel(.return) // show Return, not Send; Return inserts newline
                 if isStreaming { ProgressView().scaleEffect(0.8) }
                 Button(action: send) {
@@ -135,6 +152,69 @@ struct TrainingView: View {
         }
     }
 
+    private enum RepairKind { case rephrase, pivot, open }
+
+    private func recommendedRepair() -> RepairKind {
+        if metrics.openQuestionsCount == 0 || metrics.shortAnswersCount >= 2 { return .open }
+        return .pivot
+    }
+
+    private func repair(_ kind: RepairKind) {
+        guard !isStreaming else { return }
+        isRepairLoading = true
+        let kindString: String = {
+            switch kind { case .rephrase: return "rephrase"; case .pivot: return "pivot"; case .open: return "open" }
+        }()
+        Task {
+            do {
+                // Build avoid list from recent transcript and past repairs
+                let avoid = buildAvoidList()
+                var suggestion = try await AIClient.shared.generateRepairSuggestion(kind: kindString, transcript: transcript, avoid: avoid)
+                // Deduplicate client-side (simple normalization)
+                if isDuplicateSuggestion(suggestion) {
+                    // One retry with extra avoid
+                    let extraAvoid = avoid + [suggestion]
+                    suggestion = try await AIClient.shared.generateRepairSuggestion(kind: kindString, transcript: transcript, avoid: extraAvoid)
+                }
+                await MainActor.run {
+                    self.input = suggestion
+                    self.inputFocused = true
+                    self.isRepairLoading = false
+                    self.recentRepairs.append(suggestion)
+                    if self.recentRepairs.count > 6 { self.recentRepairs.removeFirst(self.recentRepairs.count - 6) }
+                }
+            } catch {
+                await MainActor.run {
+                    self.errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                    self.isRepairLoading = false
+                }
+            }
+        }
+    }
+
+    private func buildAvoidList() -> [String] {
+        let recentTurns = transcript.suffix(10).map { $0.text }
+        let current = input.isEmpty ? [] : [input]
+        return Array((recentTurns + current + recentRepairs).suffix(10))
+    }
+
+    private func isDuplicateSuggestion(_ s: String) -> Bool {
+        let normS = normalize(s)
+        if normS.isEmpty { return true }
+        // Check against transcript and recent repairs
+        if transcript.suffix(12).map({ normalize($0.text) }).contains(normS) { return true }
+        if recentRepairs.map({ normalize($0) }).contains(normS) { return true }
+        if normalize(input) == normS { return true }
+        return false
+    }
+
+    private func normalize(_ s: String) -> String {
+        let lowered = s.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        let filtered = lowered.unicodeScalars.filter { CharacterSet.alphanumerics.union(CharacterSet.whitespaces).contains($0) }
+        let compact = String(String.UnicodeScalarView(filtered)).replacingOccurrences(of: " +", with: " ", options: .regularExpression)
+        return compact
+    }
+
     private func endSession() {
         isEnding = true
         showEndSheet = true
@@ -216,6 +296,22 @@ private struct TypingIndicatorBubble: View {
                 animate.toggle()
             }
         }
+    }
+}
+
+private struct RepairChip: View {
+    let title: String
+    var recommended: Bool = false
+    var action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.footnote)
+                .padding(.vertical, 6)
+                .padding(.horizontal, 10)
+                .background(Capsule().fill(recommended ? Color.accentColor.opacity(0.18) : Color.secondary.opacity(0.15)))
+        }
+        .buttonStyle(.plain)
     }
 }
 
