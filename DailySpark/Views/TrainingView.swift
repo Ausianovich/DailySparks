@@ -16,9 +16,11 @@ struct TrainingView: View {
     @State private var isEnding = false
     @State private var isRepairLoading = false
     @State private var feedback: FeedbackSummary? = nil
+    @State private var suggestedLesson: MicroLesson? = nil
     @State private var recentRepairs: [String] = []
 
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         VStack {
@@ -96,13 +98,33 @@ struct TrainingView: View {
                 return (try? modelContext.fetch(fetch).first?.storeTranscripts) ?? false
             }()
             if let fb = feedback {
-                SessionEndView(feedback: fb, canSave: canSave, onSave: {
+                SessionEndView(feedback: fb, suggestedLesson: suggestedLesson, canSave: canSave, onSave: {
                     saveSession()
                     showEndSheet = false
-                }, onClose: { showEndSheet = false })
+                    dismiss()
+                }, onClose: {
+                    showEndSheet = false
+                    dismiss()
+                })
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
             } else {
-                ProgressView().presentationDetents([.medium])
+                NavigationStack {
+                    VStack(spacing: 16) {
+                        ProgressView()
+                        Text("Preparing summary…").font(.caption).foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    .navigationTitle("Summary")
+                    .navigationBarTitleDisplayMode(.inline)
+                }
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
             }
+        }
+        .onChange(of: showEndSheet) { open in
+            // If user closed the summary sheet after it was shown, exit training view
+            if open == false, feedback != nil { dismiss() }
         }
     }
 
@@ -222,9 +244,14 @@ struct TrainingView: View {
         Task {
             do {
                 let ai = try await AIClient.shared.generateFeedback(transcript: transcript, metrics: metrics)
-                let fb = FeedbackSummary(strengths: Array(ai.strengths.prefix(2)), suggestion: ai.suggestion, microLessonId: nil)
+                var lessonMatch: MicroLesson? = nil
+                if let title = ai.micro_lesson, !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    lessonMatch = findLesson(byTitleApprox: title)
+                }
+                let fb = FeedbackSummary(strengths: Array(ai.strengths.prefix(2)), suggestion: ai.suggestion, microLessonId: lessonMatch?.id)
                 await MainActor.run {
                     self.feedback = fb
+                    self.suggestedLesson = lessonMatch
                     self.isEnding = false
                 }
             } catch {
@@ -252,6 +279,20 @@ struct TrainingView: View {
         let lower = text.lowercased()
         let prefixes = ["how ", "what ", "which ", "why ", "кто ", "что ", "как ", "почему "]
         return prefixes.contains { lower.hasPrefix($0) }
+    }
+
+    private func findLesson(byTitleApprox title: String) -> MicroLesson? {
+        // Simple case-insensitive contains match over small seed set
+        let all: [MicroLesson] = (try? modelContext.fetch(FetchDescriptor<MicroLesson>())) ?? []
+        let lower = title.lowercased()
+        // exact title match first
+        if let exact = all.first(where: { $0.title.lowercased() == lower }) { return exact }
+        // contains any significant token
+        let tokens = lower.split(separator: " ").map { String($0) }.filter { $0.count > 3 }
+        return all.first(where: { l in
+            let lt = l.title.lowercased()
+            return tokens.contains(where: { lt.contains($0) })
+        })
     }
 }
 
@@ -319,6 +360,7 @@ private struct RepairChip: View {
 // End-of-session sheet
 private struct SessionEndView: View {
     let feedback: FeedbackSummary
+    let suggestedLesson: MicroLesson?
     let canSave: Bool
     var onSave: () -> Void
     var onClose: () -> Void
@@ -329,8 +371,12 @@ private struct SessionEndView: View {
                     ForEach(feedback.strengths, id: \.self) { Text($0) }
                 }
                 Section("Try next") { Text(feedback.suggestion) }
-                if let _ = feedback.microLessonId {
-                    Section("Micro-lesson") { Text("Suggested: see Micro Lessons") }
+                if let lesson = suggestedLesson {
+                    Section("Micro-lesson") {
+                        NavigationLink(destination: LessonDetailView(lesson: lesson)) {
+                            Label(lesson.title, systemImage: "book")
+                        }
+                    }
                 }
                 if canSave {
                     Section { Button("Save Session", action: onSave) }
