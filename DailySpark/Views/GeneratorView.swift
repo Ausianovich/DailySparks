@@ -169,6 +169,11 @@ private struct SparkRowView: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
+            Circle()
+                .fill(markerColor(for: spark.typeRaw))
+                .frame(width: 8, height: 8)
+                .padding(.top, 6)
+                .accessibilityHidden(true)
             Text(MarkdownHelper.attributed(from: spark.text))
                 .font(.body)
                 .multilineTextAlignment(.leading)
@@ -176,5 +181,15 @@ private struct SparkRowView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
+    }
+}
+
+// Color marker for spark type
+private func markerColor(for typeRaw: String) -> Color {
+    switch typeRaw.lowercased() {
+    case "question": return .blue
+    case "observation": return .teal
+    case "theme": return .orange
+    default: return .gray
     }
 }
