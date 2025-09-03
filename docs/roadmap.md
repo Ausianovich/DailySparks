@@ -21,3 +21,11 @@
 ## Phase 3 — Growth Options (Weeks 7+)
 - Additional scenarios; deeper feedback; content expansions.
 - Mobile wrapper or PWA polish; basic paywall experiments.
+
+## Phase 4 — Next Plans (Post‑MVP)
+- UI sizing & readability: audit spacing/typography for better legibility (Dynamic Type, larger tap targets, comfortable paddings).
+- Onboarding: lightweight, 2–3 screens (value prop → how Generator works → privacy), plus first‑run quick presets.
+- Subscriptions: paywall screen (benefits, pricing), intro offer, restore purchases, entitlements gating (e.g., more Training personas, deeper feedback), local receipt validation.
+- Sign in with Apple: simple account layer to sync settings/sessions (optional), privacy‑first.
+- Notifications: local reminders for training streaks; push notifications for tips/new lessons; in‑app notification settings.
+- Strike system for Training: define rules for strikes (e.g., repeated short answers, idle time, closed questions); surfaced as gentle coaching, not punishment; analytics hooks.
