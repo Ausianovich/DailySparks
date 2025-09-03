@@ -30,9 +30,12 @@ actor AIClient {
     struct SparkItem: Decodable { let type: String; let text: String }
     struct SparksResponse: Decodable { let items: [SparkItem] }
 
-    func generateSparksStructured(situation: String, audience: String, locale: String = "en", model: String = "4o-nano") async throws -> [SparkItem] {
+    func generateSparksStructured(situation: String, audience: String, locale: String = "en", model: String = "4o-nano", tone: String? = nil, length: String? = nil) async throws -> [SparkItem] {
         let system = "You are DailySpark, generating light, safe, contemporary conversation sparks for adults 30+. Avoid politics, religion, explicit content, or controversy. Prefer positive, neutral topics. Provide variety and freshness."
-        let user = "Output strictly valid JSON only. Schema: {\\n  \\\"items\\\": [ { \\\"type\\\": \\\"question|observation|theme\\\", \\\"text\\\": \\\"...\\\" } ]\\n}\\nRules: 3–5 items; concise 1–2 lines each; no preamble or extra keys.\\nSituation: \(situation)\\nAudience: \(audience)\\nLocale: \(locale)"
+        var rules = "Rules: 3–5 items; concise 1–2 lines each; no preamble or extra keys."
+        if let tone = tone, !tone.isEmpty { rules += " Tone: \(tone)." }
+        if let length = length, !length.isEmpty { rules += " Length: \(length)." }
+        let user = "Output strictly valid JSON only. Schema: {\\n  \\\"items\\\": [ { \\\"type\\\": \\\"question|observation|theme\\\", \\\"text\\\": \\\"...\\\" } ]\\n}\\n\(rules)\\nSituation: \(situation)\\nAudience: \(audience)\\nLocale: \(locale)"
 
         var req = URLRequest(url: apiURL)
         req.httpMethod = "POST"
@@ -54,7 +57,7 @@ actor AIClient {
         if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
             // Fallback to gpt-4o-mini with JSON mode
             if model == "4o-nano" {
-                return try await generateSparksStructured(situation: situation, audience: audience, locale: locale, model: "gpt-4o-mini")
+                return try await generateSparksStructured(situation: situation, audience: audience, locale: locale, model: "gpt-4o-mini", tone: tone, length: length)
             }
             let msg = String(data: data, encoding: .utf8) ?? ""
             throw AIError.server(msg)
