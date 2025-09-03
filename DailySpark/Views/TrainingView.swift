@@ -61,7 +61,6 @@ struct TrainingView: View {
                 if isRepairLoading { ProgressView().scaleEffect(0.8) }
             }
             .padding(.horizontal)
-//            .padding(.bottom, 6)
 
             HStack(alignment: .center, spacing: 8) {
                 TextField("Type your message…", text: $input, axis: .vertical)
