@@ -28,10 +28,11 @@ struct TrainingView: View {
                 ScrollView(.vertical) {
                     LazyVStack(alignment: .leading, spacing: 8) {
                         ForEach(transcript.reversed()) { turn in
+                            let isUser = (turn.role == .user)
                             let isLastAIRow = (turn.role == .ai && turn.id == transcript.last?.id)
                             let thinking = isStreaming && isLastAIRow && turn.text.isEmpty
                             let useMarkdown = !(isStreaming && isLastAIRow)
-                            ChatMessageRow(prefix: prefix(for: turn.role), text: turn.text, isThinking: thinking, useMarkdown: useMarkdown)
+                            ChatMessageRow(isUser: isUser, text: turn.text, isThinking: thinking, useMarkdown: useMarkdown)
                                 .id(turn.id)
                         }
                     }
@@ -324,35 +325,59 @@ struct TrainingView: View {
 }
 
 private struct ChatMessageRow: View {
-    let prefix: String
+    let isUser: Bool
     let text: String
     var isThinking: Bool = false
     var useMarkdown: Bool = true
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
-            Text(prefix)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .frame(width: 48, alignment: .leading)
-            if isThinking {
-                TypingIndicatorBubble()
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            } else {
+        HStack(alignment: .top, spacing: 10) {
+            if isUser {
+                Spacer(minLength: 48)
+                // User bubble on the right
                 Group {
-                    if useMarkdown {
-                        Text(MarkdownHelper.attributed(from: text))
-                    } else {
-                        Text(text)
-                    }
+                    if useMarkdown { Text(MarkdownHelper.attributed(from: text)) } else { Text(text) }
                 }
-                .padding(10)
-                .background(RoundedRectangle(cornerRadius: 10).fill(.secondary.opacity(0.15)))
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .font(.body)
+                .padding(.vertical, 8)
+                .padding(.horizontal, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(Color.accentColor)
+                )
+                .foregroundStyle(Color.white)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+            } else {
+                // Assistant avatar
+                AssistantIcon()
+                if isThinking {
+                    TypingIndicatorBubble()
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    Group {
+                        if useMarkdown { Text(MarkdownHelper.attributed(from: text)) } else { Text(text) }
+                    }
+                    .font(.body)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                Spacer(minLength: 48)
             }
-            Spacer(minLength: 0)
         }
-        .padding(.horizontal)
+        .padding(.horizontal, 12)
         .scaleEffect(x: 1, y: -1)
+    }
+}
+
+private struct AssistantIcon: View {
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(Color.secondary.opacity(0.15))
+                .frame(width: 28, height: 28)
+            Image(systemName: "sparkles")
+                .foregroundStyle(.secondary)
+                .font(.system(size: 14, weight: .semibold))
+        }
+        .padding(.top, 2)
     }
 }
 
@@ -360,13 +385,11 @@ private struct TypingIndicatorBubble: View {
     @State private var animate = false
     var body: some View {
         HStack(spacing: 6) {
-            Circle().frame(width: 6, height: 6).opacity(animate ? 1 : 0.2)
-            Circle().frame(width: 6, height: 6).opacity(animate ? 0.6 : 0.2)
-            Circle().frame(width: 6, height: 6).opacity(animate ? 0.3 : 0.2)
+            Circle().frame(width: 6, height: 6).opacity(animate ? 1 : 0.25)
+            Circle().frame(width: 6, height: 6).opacity(animate ? 0.6 : 0.25)
+            Circle().frame(width: 6, height: 6).opacity(animate ? 0.3 : 0.25)
         }
         .foregroundStyle(.secondary)
-        .padding(10)
-        .background(RoundedRectangle(cornerRadius: 10).fill(.secondary.opacity(0.15)))
         .onAppear {
             withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) {
                 animate.toggle()
