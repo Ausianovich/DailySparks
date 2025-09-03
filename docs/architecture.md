@@ -11,7 +11,7 @@ A modular, lightweight architecture optimized for iOS 17+ and SwiftUI.
 ## Modules (logical)
 - Generator
   - Views: GeneratorView, SparkListView
-  - VM: GeneratorViewModel (build prompt → call AI → map → store optional)
+  - VM: GeneratorViewModel (build prompt → call AI → map → store optional); structured JSON `{items:[{type,text}]}`
   - Data: SparkRepository (SwiftData), OfflineSparkStore
 - Training
   - Views: TrainingSetupView, TrainingChatView
@@ -26,14 +26,14 @@ A modular, lightweight architecture optimized for iOS 17+ and SwiftUI.
 
 ## Concurrency & Isolation
 - AIClient isolated via actor; exposes async funcs and streaming APIs for generator/training/hints.
-- Streaming API shape: AsyncThrowingStream<AIChunk> where AIChunk = {contentDelta: String, isTerminal: Bool}
+- Streaming API shape: AsyncThrowingStream<AIChunk> where AIChunk = {contentDelta: String, isTerminal: Bool}; UI throttling buffers deltas (~50ms).
 - Repositories as actors or main-safe classes; UI updates on main actor.
 - Cancellation via Task handles on view models.
 
 ## Networking Flow (OpenAI)
 1) Build prompt from context.
-2) For Training: call AIClient.streamDialogue(...) → consume chunks and render progressively; for Generator: call generate(...), optionally stream.
-3) SafetyFilter.checkAndRewrite(...) (post-process final text or per item for Generator).
+2) For Training: call AIClient.streamDialogue(...) → consume chunks and render progressively; UI throttling; typing indicator.
+3) For Generator: call generateStructured(...) → parse JSON → map to domain; SafetyFilter per item.
 4) Map to domain types; cache/save per user choice.
 
 ## Error/Offline Handling

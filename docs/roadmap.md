@@ -7,9 +7,10 @@
 ## Phase 1 — MVP (Weeks 2–4)
 - iOS app skeleton (SwiftUI, NavigationStack, @Observable models).
 - SwiftData schema (Sparks, Sessions, Settings) and storage policies.
-- Spark Generator (UI + prompt + safety check + caching, OpenAI integration).
-- Training v0 (Corporate, Date) with streaming replies (4o-nano), hints and short feedback.
-- Micro-lessons (6–8 articles), static personalization rules.
+- Spark Generator: HIG-aligned UI (cards), structured JSON, tone/length controls, per-card interactions, Save All.
+- Training: Setup (random personas + refresh), chat UI (bubbles/text, typing), Repair Kit, streaming with throttling, Summary with micro‑lesson link, opt‑in save.
+- Library: Saved Sparks management; Training Sessions history + detail; Micro-lessons list/detail.
+- Settings: API key, storage opt‑in, delete all.
 
 ## Phase 2 — Hardening (Weeks 5–6)
 - Latency/quality tuning; offline fallback sparks.

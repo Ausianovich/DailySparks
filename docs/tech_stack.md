@@ -24,6 +24,7 @@
 - Streaming: SSE/streaming responses parsed into an AsyncThrowingStream of content deltas
 - UI: Incremental rendering in SwiftUI (main-actor updates), with cancel on navigation/back
 - Safety pass: lightweight heuristic/classifier + rewrite fallback
+ - Generator uses response_format=json_object (structured `{items:[{type,text}]}`)
 
 ## Configuration
 - Secrets: OpenAI API key stored in iOS Keychain for local testing (no secrets in repo)
@@ -35,3 +36,9 @@
 
 ## Analytics (MVP-minimal)
 - Privacy-first: basic in-house counters for usage events; no 3rd-party SDKs
+
+## App Structure (tabs)
+- Generator: Context (fields + tone/length + Generate) and Fresh Sparks
+- Training: Setup (random personas, pull-to-refresh) → Chat (streaming, typing, Repair Kit) → Summary
+- Library: Saved Sparks, Training Sessions (history + detail), Micro Lessons
+- Settings: API key (Keychain), storage opt-in, delete all

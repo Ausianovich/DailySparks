@@ -22,19 +22,20 @@ See SwiftData entities and fields in `docs/swiftdata_schema.md`.
 See detailed UX flows in `docs/ux_flows.md`.
 
 ### Spark Generator
-1) User selects/enters situation and audience.
-2) System returns 3–5 sparks categorized as Questions / Observations / Themes.
-3) User can regenerate, save, or copy.
+1) User enters Situation/Audience in Context; optional Tone (Friendly/Playful/Formal) and Length (Short/Medium).
+2) Tap Generate (inside Context card).
+3) Backend returns structured JSON (items[{type,text}]) mapped to Questions/Observations/Themes.
+4) Fresh Sparks: header + list of cards with type badge; interactions: tap=Copy, long‑press menu (Copy/Save/Share), swipe right=Save. Header action: Save All.
 
-### Training (Corporate, Date)
-1) User picks a scenario and sees a short setup.
-2) AI role-plays a persona; user replies in a chat. AI messages stream token-by-token (typing effect).
-3) Real-time tips appear when user pauses or sends a short/closed response.
-4) End of session: concise feedback with 2–3 suggestions.
+### Training
+1) Setup: list of personas (randomized 9); pull‑to‑refresh regenerates list; user selects persona and starts.
+2) Chat: iMessage-like — user bubbles right; assistant text left with avatar. Random start (50/50 AI or user). Typing indicator during streaming.
+3) Repair Kit: Rephrase / Pivot / Open Q chips insert a suggested line (with de‑duplication to avoid repeats).
+4) End of session (Summary sheet): 2 strengths + 1 suggestion; optional micro‑lesson link; Save Session if storage opt‑in enabled.
 
 ### Library & Settings
-- Library: Saved sparks (list, copy/share/delete); Micro-lessons (list/detail).
-- Settings: Opt-in storage, safety level, data controls (export/delete).
+- Library: Saved Sparks (copy/share/delete, Clear All), Training Sessions (history + detail with metrics/feedback/transcript), Micro-lessons (list/detail).
+- Settings (tab): OpenAI API key (Keychain), opt‑in storage toggle, Delete All User Data.
 
 ## Functional Requirements
 - Context capture: situation (free text + presets), audience (presets + free text).
@@ -50,7 +51,7 @@ See detailed UX flows in `docs/ux_flows.md`.
 - Startup: App cold start < 1.5s on iPhone 12+.
 - Accessibility: Dynamic Type, VoiceOver labels for core screens.
 - Internationalization: UX copy in English unless specified; RU allowed for user input.
- - Streaming: Training chat uses streaming responses (incremental tokens) to render AI messages progressively; cancellation supported.
+- Streaming: Training chat uses streaming responses with UI update throttling (~20 Hz); cancellation supported.
 
 ## Empty States
 - No situation provided → show examples and presets.

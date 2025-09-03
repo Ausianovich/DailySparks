@@ -10,4 +10,4 @@ This folder contains the working product documentation:
 - evaluation.md — Quality criteria and test approach
 - roadmap.md — Phased delivery plan
 - communication.md — Language rules for collaboration
-
+ - ai_integration.md — Provider, streaming, JSON formats, fallbacks

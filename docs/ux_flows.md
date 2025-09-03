@@ -20,11 +20,10 @@ This document details screen structure, states, and user flows for MVP.
   - SettingsView (storage opt-in, safety level, locale, data controls)
 
 ## Generator Flow
-1) Idle: User sees two fields (Situation, Audience) + Presets + Generate button.
-2) Generate: Validate non-empty; show loading indicator.
-3) Results: Show 3–5 sparks grouped by type (Question/Observation/Theme).
-4) Actions: Regenerate, Save spark, Copy spark, Share (iOS share sheet).
-5) Optional: Quick feedback buttons (Helpful / Not relevant) for tuning.
+1) Context card: Situation/Audience (multi-line), Tone/Length chips, primary "Generate" button.
+2) Generate: Validate non-empty; button shows loading; skeleton cards in results area.
+3) Results: Fresh Sparks header + vertical list of spark cards with type badge (question/observation/theme).
+4) Per-card interactions: tap=Copy; long-press=Copy/Save/Share; swipe right=Save; header action=Save All.
 
 States
 - Idle → Loading → Results | Error
@@ -41,8 +40,8 @@ Persistence
 
 ## Training Flow
 Setup
-1) User picks scenario (Corporate | Date). Brief scenario card shows persona gist.
-2) Start: Show TrainingChatView with AI opening line.
+1) User picks persona from a randomized list (9 items). Pull-to-refresh reshuffles candidates. Persona card shows a short gist.
+2) Start: TrainingChatView opens. Random start (AI or user). Typing indicator shows during streaming.
 
 Chat Loop
 1) User sends a message.
@@ -57,7 +56,7 @@ Hints Logic (minimal rules)
 - If strong turn → "No hint" (do not show anything).
 
 End of Session
-- Show Feedback: 2 strengths, 1 suggestion, 1 micro-lesson.
+ - Show Feedback: 2 strengths, 1 suggestion, 1 micro-lesson (link to lesson).
 - Actions: Save session (if opt-in enabled), View micro-lesson, Restart.
 
 States
@@ -66,12 +65,15 @@ States
 
 ## Library Flow
 Saved Sparks
-- List by createdAt desc; filters by type; swipe to copy/delete.
-- Detail: show full text, context, quick share.
+- List by createdAt desc; manage via swipe (delete) and context menu (share/copy/delete); Clear All in header.
 
 Micro Lessons
 - List of 6–8 short lessons (static for MVP) with tags.
 - Detail shows content and related actions (start training, generate sparks).
+
+Training Sessions
+- List of saved sessions with title (Scenario: Persona) and date/turns.
+- Detail shows chat-like transcript, metrics as 2x2 tiles, and feedback section.
 
 ## Settings Flow
 - Storage Opt-in: toggle to store transcripts and saved sparks.

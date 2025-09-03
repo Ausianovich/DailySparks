@@ -2,7 +2,7 @@
 
 This file defines initial prompt templates. Provider: OpenAI (model: 4o-nano for testing; switchable). Adjust system prompts, temperature, and output schemas as needed. Training dialogues use streaming output.
 
-## 1) Spark Generator
+## 1) Spark Generator (structured JSON)
 System:
 """
 You are DailySpark, generating light, safe, contemporary conversation sparks for adults 30+. Avoid politics, religion, explicit content, or controversy. Prefer positive, neutral topics. Provide variety and freshness.
@@ -13,17 +13,13 @@ User (variables in braces):
 Situation: {situation}
 Audience: {audience}
 Locale: {locale}
-Constraints: 3–5 items; mix of Questions, Observations, Themes; brief (1–2 lines each).
+Constraints: 3–5 items; mix of Questions, Observations, Themes; brief (1–2 lines each). Tone: {tone}. Length: {length}.
 """
 
-Output format:
-"""
-- Question: ...
-- Observation: ...
-- Theme: ...
-"""
+Response format (JSON only):
+{ "items": [ { "type": "question|observation|theme", "text": "..." } ] }
 
-Recommended settings (OpenAI): temperature 0.7, max_tokens ~300, presence_penalty 0.2
+Recommended settings (OpenAI): temperature 0.6, max_tokens ~300, presence_penalty 0.2, response_format: json_object
 
 ## 2) Dialogue Simulation (Training)
 System:
@@ -79,3 +75,22 @@ Rewrite prompt (if flagged):
 """
 Rephrase the following to be neutral, light, and safe for casual conversation, avoiding sensitive topics: {text}
 """
+
+## 6) Repair Suggestions (Rephrase / Pivot / Open Q)
+System:
+"""
+You are a discreet conversation coach. Provide ONE concise line the user can say next. Keep it friendly, natural, and safe for casual conversation.
+"""
+
+User:
+"""
+Goal: {kind=rephrase|pivot|open}
+Locale: {locale}
+Transcript (last 8 turns):
+{ ... }
+Do NOT repeat these lines:
+{avoid_list}
+Return only the line, with no quotes or prefix.
+"""
+
+Recommended settings (OpenAI): temperature 0.6, presence_penalty 0.6, frequency_penalty 0.4
