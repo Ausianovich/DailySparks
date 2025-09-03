@@ -1,0 +1,76 @@
+import Foundation
+import SwiftData
+
+enum SeedService {
+    private static let didSeedKey = "didSeed_v1"
+
+    static func seedIfNeeded(modelContext: ModelContext) {
+        let defaults = UserDefaults.standard
+        guard defaults.bool(forKey: didSeedKey) == false else { return }
+
+        // Seed MicroLessons
+        let lessons = MicroLessonSeeds.lessons
+        for l in lessons {
+            let ml = MicroLesson(id: l.id, title: l.title, body: l.body, tags: l.tags)
+            modelContext.insert(ml)
+        }
+
+        // Seed UserSettings singleton if missing
+        let fetch = FetchDescriptor<UserSettings>(predicate: #Predicate { _ in true })
+        if let existing = try? modelContext.fetch(fetch), existing.isEmpty {
+            modelContext.insert(UserSettings())
+        }
+
+        try? modelContext.save()
+        defaults.set(true, forKey: didSeedKey)
+    }
+}
+
+struct MicroLessonSeed: Codable {
+    let id: UUID
+    let title: String
+    let body: String
+    let tags: [String]
+}
+
+enum MicroLessonSeeds {
+    static let lessons: [MicroLessonSeed] = [
+        MicroLessonSeed(
+            id: UUID(uuidString: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaa0001")!,
+            title: "How to Exit an Awkward Pause",
+            body: "Pauses happen—even to great conversationalists. The trick is to treat them as a reset, not a failure. First, smile and release the tension with a neutral bridge: ‘By the way…’ or ‘That reminds me…’. Then use one of three routes: (1) Observation: call out something pleasant in the environment (music, lighting, a poster, a snack) and invite a mini-opinion—‘Have you tried these?’. (2) Personal micro-story: a 10–15 second note about your day that ends with an open question—‘I finally tried that tiny bakery near the station—do you have a favorite quick stop?’. (3) Topic shift to a shared context: the event, the host, or the place—‘How did you hear about this?’. Keep tone light, avoid quizzing, and prefer questions starting with ‘how/what/which’. If the other person gives a short answer, add a warm follow‑up (‘What made you choose that?’). Two rounds are enough—then pivot again if needed.",
+            tags: ["basics","pauses","confidence"]
+        ),
+        MicroLessonSeed(
+            id: UUID(uuidString: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaa0002")!,
+            title: "Active Listening in 60 Seconds",
+            body: "Active listening turns short exchanges into easy flow. Aim for a simple loop: (1) Notice a keyword in their answer (‘bakery’, ‘first week’, ‘gallery’). (2) Reflect it back in your own words: ‘So it’s your first week—how’s the setup so far?’. (3) Ask one open follow‑up. Keep your eyes/attention steady, nod, and avoid stacking questions. Use tiny encouragers—‘got it’, ‘sounds fun’, ‘tell me more’. When they finish, summarize in one sentence: ‘So you switched teams to explore more design work.’ This signals care without hijacking the topic. Share a small related note (10–15 seconds), then return the ball with an open prompt. That rhythm—reflect, open, share, return—prevents monologues and awkward dead ends.",
+            tags: ["listening","technique","flow"]
+        ),
+        MicroLessonSeed(
+            id: UUID(uuidString: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaa0003")!,
+            title: "Open Questions That Invite Stories",
+            body: "Good openers feel specific, not generic. Try ‘How did you get into…?’ instead of ‘Do you like…?’. Add context for warmth: ‘You mentioned the new gallery—what’s been your favorite find lately?’. Use ‘how/what/which’ and avoid yes/no traps. Two reliable frames: (1) Past→Present: ‘What surprised you most about your first week here?’. (2) Preference→Reason: ‘What do you look for in a great coffee spot?’. Keep them answerable in one breath. If the reply is short, follow with ‘What made that stand out?’ or ‘How did that come about?’. Finish with a soft hand‑off—‘I’m curious what you’d recommend for someone new to this.’ It invites advice, which most people enjoy giving.",
+            tags: ["questions","technique","starters"]
+        ),
+        MicroLessonSeed(
+            id: UUID(uuidString: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaa0004")!,
+            title: "Observation‑Led Openers",
+            body: "Observation is the most universal spark. Start with something genuinely positive and specific: the playlist (‘nice mix—do you know the artist?’), the space (‘these lights make it feel cozy’), or logistics (‘the snack table is dangerously close to me’). Add a playful angle only if the vibe allows. Avoid sensitive observations about people’s bodies, age, or status. Tie your observation to a simple choice question: ‘Do you usually prefer quiet places or a bit of buzz?’. This lets them express taste without pressure. Bonus: use ‘because’ to prompt richer answers—‘Which part of town do you like for evenings, and why?’. Keep it light; if energy dips, pivot to a new observation or a relatable mini-story.",
+            tags: ["openers","observations","style"]
+        ),
+        MicroLessonSeed(
+            id: UUID(uuidString: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaa0005")!,
+            title: "Pivoting Away from Sensitive Topics",
+            body: "If a topic drifts toward politics, religion, or anything heated, acknowledge lightly and steer to safe ground. Use the A‑P‑S move: Acknowledge (‘That can get complex’), Pivot (‘I’m more curious about…’), Suggest (a neutral alternative). Examples: ‘That’s a big area—by the way, I’m collecting ideas for easy weekend plans—what’s your go‑to?’. Or, ‘Good question—speaking of curious things, have you seen any small exhibitions lately?’. Keep tone calm, no judgment. If the other person insists, offer a gentle boundary plus option: ‘I tend to keep that offline at events—tell me about your current projects instead?’. Practiced pivots keep conversations friendly without shutting people down.",
+            tags: ["safety","de-escalation","pivots"]
+        ),
+        MicroLessonSeed(
+            id: UUID(uuidString: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaa0006")!,
+            title: "Compliments That Land (and Don’t Backfire)",
+            body: "Compliments work best when they’re about choices and effort, not appearance or status. Pick something contextual and specific: ‘Great call on the venue—this place feels relaxed.’ or ‘I like how you explain that—really clear.’ Keep it short and don’t expect a big response; treat it as a warm nudge, not a transaction. Avoid overly personal comments (body, age) or anything that could feel evaluative at work. A safe template: [Specific thing] + [impact on you]. ‘That playlist you recommended made my commute nicer.’ If they deflect, smile and move on. You can follow with a small question that lets them share: ‘How did you discover it?’. One sincere compliment per interaction is plenty; then return to shared topics.",
+            tags: ["compliments","tone","etiquette"]
+        )
+    ]
+}
+
