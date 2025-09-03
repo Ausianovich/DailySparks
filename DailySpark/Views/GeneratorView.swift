@@ -69,12 +69,23 @@ struct GeneratorView: View {
                         Text("No sparks yet.").foregroundStyle(.secondary)
                     } else {
                         ForEach(results, id: \.id) { spark in
-                            HStack(alignment: .top) {
-                                Text(spark.typeRaw.capitalized).font(.caption).foregroundStyle(.secondary).frame(width: 90, alignment: .leading)
-                                Text(spark.text)
-                                Spacer()
-                                Button(action: { save(spark) }) { Image(systemName: "tray.and.arrow.down") }
-                            }
+                            SparkRowView(spark: spark)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                    Button {
+                                        copyText(spark.text)
+                                    } label: {
+                                        Label("Copy", systemImage: "doc.on.doc")
+                                    }
+                                    .tint(.blue)
+
+                                    Button {
+                                        save(spark)
+                                    } label: {
+                                        Label("Save", systemImage: "tray.and.arrow.down")
+                                    }
+                                    .tint(.green)
+                                }
                         }
                     }
                 }
@@ -98,12 +109,8 @@ struct GeneratorView: View {
                 let lines = SafetyFilter.filterSparks(raw)
                 var out: [Spark] = []
                 for line in lines {
-                    var type: Spark.SparkType = .question
-                    var text = line
-                    if line.lowercased().hasPrefix("- question:") { type = .question; text = String(line.dropFirst("- question:".count)).trimmingCharacters(in: .whitespaces) }
-                    else if line.lowercased().hasPrefix("- observation:") { type = .observation; text = String(line.dropFirst("- observation:".count)).trimmingCharacters(in: .whitespaces) }
-                    else if line.lowercased().hasPrefix("- theme:") { type = .theme; text = String(line.dropFirst("- theme:".count)).trimmingCharacters(in: .whitespaces) }
-                    out.append(Spark(type: type, text: text, situationLabel: situation, audienceLabel: audience))
+                    let (stype, text) = parseSpark(line)
+                    out.append(Spark(type: stype, text: text, situationLabel: situation, audienceLabel: audience))
                 }
                 await MainActor.run { self.results = out; self.isLoading = false }
             } catch {
@@ -119,5 +126,72 @@ struct GeneratorView: View {
         spark.saved = true
         modelContext.insert(spark)
         try? modelContext.save()
+    }
+
+    private func copyText(_ text: String) {
+        #if canImport(UIKit)
+        UIPasteboard.general.string = text
+        #endif
+    }
+
+}
+
+// Robust parser for lines like:
+// "- Question: ...", "• Observation — ...", "Theme - ...", or plain text.
+private func parseSpark(_ line: String) -> (Spark.SparkType, String) {
+    let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+    // Strip common list bullets and numbering
+    var s = trimmed
+    let bulletPatterns: [String] = ["- ", "• ", "* ", "— ", "– "]
+    for b in bulletPatterns {
+        if s.hasPrefix(b) { s.removeFirst(b.count); break }
+    }
+    if let range = s.range(of: #"^\d+([\.)]|\))\s+"#, options: .regularExpression) {
+        s.removeSubrange(range)
+    }
+    let lower = s.lowercased()
+
+    func stripLabel(_ token: String) -> String? {
+        // Match: token [spaces] [: - – —] [spaces] text
+        let escaped = NSRegularExpression.escapedPattern(for: token)
+        let pattern = "^" + escaped + #"\s*[:\-–—]\s*(.+)$"#
+        guard let re = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else { return nil }
+        let ns = s as NSString
+        let range = NSRange(location: 0, length: ns.length)
+        if let m = re.firstMatch(in: s, range: range), m.numberOfRanges >= 2 {
+            let text = ns.substring(with: m.range(at: 1)).trimmingCharacters(in: .whitespaces)
+            return text
+        }
+        return nil
+    }
+
+    // English + Russian labels
+    let questionLabels = ["question", "questions", "вопрос", "вопросы"]
+    let observationLabels = ["observation", "observations", "comment", "comments", "наблюдение", "наблюдения", "комментарий", "комментарии", "замечание", "замечания"]
+    let themeLabels = ["theme", "themes", "topic", "topics", "тема", "темы"]
+
+    for q in questionLabels { if let text = stripLabel(q) { return (.question, text) } }
+    for o in observationLabels { if let text = stripLabel(o) { return (.observation, text) } }
+    for t in themeLabels { if let text = stripLabel(t) { return (.theme, text) } }
+
+    // Heuristic fallback
+    let inferred: Spark.SparkType = s.contains("?") ? .question : .theme
+    return (inferred, s)
+}
+
+// Removed filter and grouping to show a mixed list, as requested
+
+private struct SparkRowView: View {
+    let spark: Spark
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Text(MarkdownHelper.attributed(from: spark.text))
+                .font(.body)
+                .multilineTextAlignment(.leading)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
     }
 }

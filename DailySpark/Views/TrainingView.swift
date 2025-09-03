@@ -103,7 +103,7 @@ private struct ChatMessageRow: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .frame(width: 48, alignment: .leading)
-            Text(text)
+            Text(MarkdownHelper.attributed(from: text))
                 .padding(10)
                 .background(RoundedRectangle(cornerRadius: 10).fill(.secondary.opacity(0.15)))
                 .frame(maxWidth: .infinity, alignment: .leading)
