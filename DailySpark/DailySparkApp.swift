@@ -41,6 +41,8 @@ struct RootView: View {
                 .tabItem { Label("Training", systemImage: "bubble.left.and.text.bubble.right") }
             LibraryView()
                 .tabItem { Label("Library", systemImage: "book") }
+            SettingsView()
+                .tabItem { Label("Settings", systemImage: "gear") }
         }
     }
 }

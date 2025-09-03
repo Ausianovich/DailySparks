@@ -4,10 +4,32 @@ import SwiftData
 struct LibraryView: View {
     @Query(sort: \Spark.createdAt, order: .reverse) private var savedSparks: [Spark]
     @Query(sort: \MicroLesson.lastUpdated, order: .reverse) private var lessons: [MicroLesson]
+    @Query(sort: \TrainingSession.startedAt, order: .reverse) private var sessions: [TrainingSession]
+    @Environment(\.modelContext) private var modelContext
 
     var body: some View {
         NavigationStack {
             List {
+                if !sessions.isEmpty {
+                    Section("Training Sessions") {
+                        ForEach(sessions, id: \.id) { s in
+                            NavigationLink(destination: TrainingSessionDetailView(session: s)) {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(title(for: s))
+                                        .font(.body)
+                                    Text(subtitle(for: s))
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            .swipeActions {
+                                Button(role: .destructive) {
+                                    deleteSession(s)
+                                } label: { Label("Delete", systemImage: "trash") }
+                            }
+                        }
+                    }
+                }
                 if !savedSparks.isEmpty {
                     Section("Saved Sparks") {
                         ForEach(savedSparks, id: \.id) { s in
@@ -37,12 +59,27 @@ struct LibraryView: View {
             }
             .navigationTitle("Library")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                NavigationLink(destination: SettingsView()) {
-                    Image(systemName: "gear")
-                }
-            }
         }
+    }
+
+    private func title(for s: TrainingSession) -> String {
+        let scen = s.scenario.capitalized
+        let persona = s.personaLabel ?? "Partner"
+        return "\(scen): \(persona)"
+    }
+
+    private func subtitle(for s: TrainingSession) -> String {
+        let df = DateFormatter()
+        df.dateStyle = .medium
+        df.timeStyle = .short
+        let date = df.string(from: s.startedAt)
+        let turns = s.metrics.turns
+        return "\(date) • \(turns) turns"
+    }
+
+    private func deleteSession(_ s: TrainingSession) {
+        modelContext.delete(s)
+        try? modelContext.save()
     }
 }
 

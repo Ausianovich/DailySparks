@@ -243,6 +243,7 @@ struct TrainingView: View {
         let allowStore = (try? modelContext.fetch(fetch).first?.storeTranscripts) ?? false
         guard allowStore else { return }
         let session = TrainingSession(scenario: scenarioId, personaId: nil, personaLabel: personaLabel, transcript: transcript, metrics: metrics, feedback: feedback, kept: true, locale: "en")
+        session.endedAt = Date()
         modelContext.insert(session)
         try? modelContext.save()
     }
