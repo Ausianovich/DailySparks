@@ -11,6 +11,10 @@ struct TrainingView: View {
     ]
     @State private var isStreaming = false
     @State private var errorMessage: String?
+    @State private var metrics = TrainingMetrics()
+    @State private var showEndSheet = false
+    @State private var isEnding = false
+    @State private var feedback: FeedbackSummary? = nil
 
     @Environment(\.modelContext) private var modelContext
 
@@ -62,6 +66,27 @@ struct TrainingView: View {
         }, message: { Text(errorMessage ?? "") })
         .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("End") { endSession() }
+                    .disabled(isStreaming || isEnding || transcript.filter { $0.role == .user }.isEmpty)
+            }
+        }
+        .sheet(isPresented: $showEndSheet) {
+            // Check permission to save
+            let canSave: Bool = {
+                let fetch = FetchDescriptor<UserSettings>(predicate: #Predicate { _ in true })
+                return (try? modelContext.fetch(fetch).first?.storeTranscripts) ?? false
+            }()
+            if let fb = feedback {
+                SessionEndView(feedback: fb, canSave: canSave, onSave: {
+                    saveSession()
+                    showEndSheet = false
+                }, onClose: { showEndSheet = false })
+            } else {
+                ProgressView().presentationDetents([.medium])
+            }
+        }
     }
 
     private func scrollToBottom(_ proxy: ScrollViewProxy, animated: Bool = true) {
@@ -80,6 +105,9 @@ struct TrainingView: View {
         input = ""
         inputFocused = true
         transcript.append(.init(role: .user, text: text))
+        metrics.turns += 1
+        if text.split(separator: " ").count <= 4 { metrics.shortAnswersCount += 1 }
+        if text.contains("?") || matchesOpenPrefix(text) { metrics.openQuestionsCount += 1 }
         isStreaming = true
         streamFromAI()
     }
@@ -105,6 +133,44 @@ struct TrainingView: View {
             }
             await MainActor.run { isStreaming = false }
         }
+    }
+
+    private func endSession() {
+        isEnding = true
+        showEndSheet = true
+        feedback = nil
+        Task {
+            do {
+                let ai = try await AIClient.shared.generateFeedback(transcript: transcript, metrics: metrics)
+                let fb = FeedbackSummary(strengths: Array(ai.strengths.prefix(2)), suggestion: ai.suggestion, microLessonId: nil)
+                await MainActor.run {
+                    self.feedback = fb
+                    self.isEnding = false
+                }
+            } catch {
+                await MainActor.run {
+                    self.isEnding = false
+                    self.showEndSheet = false
+                    self.errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                }
+            }
+        }
+    }
+
+    private func saveSession() {
+        // Check settings for opt-in
+        let fetch = FetchDescriptor<UserSettings>(predicate: #Predicate { _ in true })
+        let allowStore = (try? modelContext.fetch(fetch).first?.storeTranscripts) ?? false
+        guard allowStore else { return }
+        let session = TrainingSession(scenario: scenarioId, personaId: nil, personaLabel: personaLabel, transcript: transcript, metrics: metrics, feedback: feedback, kept: true, locale: "en")
+        modelContext.insert(session)
+        try? modelContext.save()
+    }
+
+    private func matchesOpenPrefix(_ text: String) -> Bool {
+        let lower = text.lowercased()
+        let prefixes = ["how ", "what ", "which ", "why ", "кто ", "что ", "как ", "почему "]
+        return prefixes.contains { lower.hasPrefix($0) }
     }
 }
 
@@ -149,6 +215,35 @@ private struct TypingIndicatorBubble: View {
             withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) {
                 animate.toggle()
             }
+        }
+    }
+}
+
+// End-of-session sheet
+private struct SessionEndView: View {
+    let feedback: FeedbackSummary
+    let canSave: Bool
+    var onSave: () -> Void
+    var onClose: () -> Void
+    var body: some View {
+        NavigationStack {
+            List {
+                Section("What worked") {
+                    ForEach(feedback.strengths, id: \.self) { Text($0) }
+                }
+                Section("Try next") { Text(feedback.suggestion) }
+                if let _ = feedback.microLessonId {
+                    Section("Micro-lesson") { Text("Suggested: see Micro Lessons") }
+                }
+                if canSave {
+                    Section { Button("Save Session", action: onSave) }
+                } else {
+                    Section { Text("Enable saving in Settings to store sessions.").font(.caption).foregroundStyle(.secondary) }
+                }
+            }
+            .navigationTitle("Summary")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Close", action: onClose) } }
         }
     }
 }

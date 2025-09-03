@@ -155,4 +155,51 @@ actor AIClient {
             }
         }
     }
+
+    // MARK: - Post-dialogue feedback (non-streaming, JSON)
+    struct AIFeedback: Decodable {
+        let strengths: [String]
+        let suggestion: String
+        let micro_lesson: String?
+    }
+
+    func generateFeedback(transcript: [DialogueTurn], metrics: TrainingMetrics, locale: String = "en", model: String = "4o-nano") async throws -> AIFeedback {
+        let system = "Provide concise, kind feedback for a short casual dialogue. Return JSON only."
+        // Compact transcript text
+        let turns = transcript.suffix(12).map { t in
+            let role = (t.role == .user) ? "user" : (t.role == .ai ? "ai" : "hint")
+            return "\(role): \(t.text)"
+        }.joined(separator: "\n")
+        let user = "Output strictly valid JSON only. Schema: {\\n  \\\"strengths\\\": [\\\"...\\\", \\\"...\\\"],\\n  \\\"suggestion\\\": \\\"...\\\",\\n  \\\"micro_lesson\\\": \\\"optional title\\\"\\n}\\nRules: 2 strengths; 1 actionable suggestion (1 sentence); neutral, kind, specific.\nMetrics: short=\(metrics.shortAnswersCount), openQ=\(metrics.openQuestionsCount), turns=\(metrics.turns)\nTranscript (\(locale)):\n\(turns)"
+
+        var req = URLRequest(url: apiURL)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue(try authHeader(), forHTTPHeaderField: "Authorization")
+        let body: [String: Any] = [
+            "model": model,
+            "temperature": 0.4,
+            "response_format": ["type": "json_object"],
+            "messages": [
+                ["role": "system", "content": system],
+                ["role": "user", "content": user]
+            ]
+        ]
+        req.httpBody = try JSONSerialization.data(withJSONObject: body)
+        let (data, response) = try await URLSession.shared.data(for: req)
+        if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+            if model == "4o-nano" {
+                return try await generateFeedback(transcript: transcript, metrics: metrics, locale: locale, model: "gpt-4o-mini")
+            }
+            let msg = String(data: data, encoding: .utf8) ?? ""
+            throw AIError.server(msg)
+        }
+        struct Choice: Decodable { let message: Msg }
+        struct Msg: Decodable { let role: String; let content: String }
+        struct Resp: Decodable { let choices: [Choice] }
+        let decoded = try JSONDecoder().decode(Resp.self, from: data)
+        guard let content = decoded.choices.first?.message.content,
+              let jsonData = content.data(using: .utf8) else { throw AIError.decoding }
+        return try JSONDecoder().decode(AIFeedback.self, from: jsonData)
+    }
 }
