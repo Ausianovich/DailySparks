@@ -31,14 +31,37 @@ struct LibraryView: View {
                     }
                 }
                 if !savedSparks.isEmpty {
-                    Section("Saved Sparks") {
+                    Section {
                         ForEach(savedSparks, id: \.id) { s in
                             VStack(alignment: .leading, spacing: 4) {
-                                Text(s.text)
+                                Text(MarkdownHelper.attributed(from: s.text))
                                 Text((s.typeRaw.capitalized))
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
+                            .contextMenu {
+                                ShareLink(item: s.text) { Label("Share", systemImage: "square.and.arrow.up") }
+                                Button { copySpark(s) } label: { Label("Copy", systemImage: "doc.on.doc") }
+                                Button(role: .destructive) { deleteSpark(s) } label: { Label("Delete", systemImage: "trash") }
+                            }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                Button(role: .destructive) { deleteSpark(s) } label: { Label("Delete", systemImage: "trash") }
+                                Button { copySpark(s) } label: { Label("Copy", systemImage: "doc.on.doc") }.tint(.blue)
+                            }
+                        }
+                        .onDelete(perform: deleteSparkAt)
+                    } header: {
+                        HStack {
+                            Text("Saved Sparks")
+                            Spacer()
+                            Button(role: .destructive) {
+                                clearAllSparks()
+                            } label: {
+                                Label("Clear All", systemImage: "trash")
+                                    .labelStyle(.iconOnly)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Clear All Saved Sparks")
                         }
                     }
                 }
@@ -80,6 +103,26 @@ struct LibraryView: View {
     private func deleteSession(_ s: TrainingSession) {
         modelContext.delete(s)
         try? modelContext.save()
+    }
+
+    private func deleteSpark(_ s: Spark) {
+        modelContext.delete(s)
+        try? modelContext.save()
+    }
+
+    private func deleteSparkAt(_ offsets: IndexSet) {
+        for index in offsets { deleteSpark(savedSparks[index]) }
+    }
+
+    private func clearAllSparks() {
+        for s in savedSparks { modelContext.delete(s) }
+        try? modelContext.save()
+    }
+
+    private func copySpark(_ s: Spark) {
+        #if canImport(UIKit)
+        UIPasteboard.general.string = s.text
+        #endif
     }
 }
 
