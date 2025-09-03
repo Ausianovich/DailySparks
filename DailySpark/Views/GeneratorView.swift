@@ -13,6 +13,50 @@ struct GeneratorView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Section("Presets") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Situations")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 16)
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(Presets.situations, id: \.self) { item in
+                                    Button(action: { situation = item }) {
+                                        Text(item)
+                                            .font(.footnote)
+                                            .padding(.vertical, 6)
+                                            .padding(.horizontal, 10)
+                                            .background(Capsule().fill(Color.secondary.opacity(0.15)))
+                                    }
+                                }
+                            }
+                            .padding(.leading, 16)
+                            .padding(.vertical, 2)
+                        }
+
+                        Text("Audiences")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 16)
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(Presets.audiences, id: \.self) { item in
+                                    Button(action: { audience = item }) {
+                                        Text(item)
+                                            .font(.footnote)
+                                            .padding(.vertical, 6)
+                                            .padding(.horizontal, 10)
+                                            .background(Capsule().fill(Color.secondary.opacity(0.15)))
+                                    }
+                                }
+                            }
+                            .padding(.leading, 16)
+                            .padding(.vertical, 2)
+                        }
+                    }
+                }
+                .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
                 Section("Context") {
                     TextField("Situation", text: $situation)
                     TextField("Audience", text: $audience)
