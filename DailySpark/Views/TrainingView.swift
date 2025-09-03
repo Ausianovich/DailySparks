@@ -61,25 +61,32 @@ struct TrainingView: View {
                 if isRepairLoading { ProgressView().scaleEffect(0.8) }
             }
             .padding(.horizontal)
-            .padding(.bottom, 6)
+//            .padding(.bottom, 6)
 
-            HStack(alignment: .bottom, spacing: 8) {
+            HStack(alignment: .center, spacing: 8) {
                 TextField("Type your message…", text: $input, axis: .vertical)
-                    .lineLimit(1...3)
-                    .textFieldStyle(.roundedBorder)
+                    .textFieldStyle(.plain)
+                    .lineLimit(2)
+                    .padding(8)
+                    .background(
+                        Capsule()
+                            .stroke(.accent, lineWidth: 1)
+                    )
                     .focused($inputFocused)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled(true)
                     .submitLabel(.return) // show Return, not Send; Return inserts newline
-                if isStreaming { ProgressView().scaleEffect(0.8) }
-                Button(action: send) {
-                    Image(systemName: "paperplane.circle")
-                        .font(.system(size: 22, weight: .regular))
-                }
+                if isStreaming {
+                    ProgressView().scaleEffect(0.8)
+                } else {
+                    Button(action: send) {
+                        Image(systemName: "paperplane.fill")
+                            .foregroundStyle(.accent)
+                    }
                     .disabled(input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isStreaming)
+                }
             }
             .padding()
-            .background(.ultraThinMaterial)
         }
         .navigationTitle("Training")
         .navigationBarTitleDisplayMode(.inline)
@@ -374,7 +381,7 @@ private struct AssistantIcon: View {
                 .fill(Color.secondary.opacity(0.15))
                 .frame(width: 28, height: 28)
             Image(systemName: "sparkles")
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.accent)
                 .font(.system(size: 14, weight: .semibold))
         }
         .padding(.top, 2)
