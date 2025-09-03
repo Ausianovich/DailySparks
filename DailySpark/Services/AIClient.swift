@@ -26,10 +26,13 @@ actor AIClient {
         return "Bearer \(key)"
     }
 
-    // MARK: - Generator (non-streaming)
-    func generateSparks(situation: String, audience: String, locale: String = "en", model: String = "4o-nano") async throws -> String {
+    // MARK: - Generator (non-streaming, JSON structured)
+    struct SparkItem: Decodable { let type: String; let text: String }
+    struct SparksResponse: Decodable { let items: [SparkItem] }
+
+    func generateSparksStructured(situation: String, audience: String, locale: String = "en", model: String = "4o-nano") async throws -> [SparkItem] {
         let system = "You are DailySpark, generating light, safe, contemporary conversation sparks for adults 30+. Avoid politics, religion, explicit content, or controversy. Prefer positive, neutral topics. Provide variety and freshness."
-        let user = "Situation: \(situation)\nAudience: \(audience)\nLocale: \(locale)\nConstraints: 3–5 items; mix of Questions, Observations, Themes; brief (1–2 lines each)."
+        let user = "Output strictly valid JSON only. Schema: {\\n  \\\"items\\\": [ { \\\"type\\\": \\\"question|observation|theme\\\", \\\"text\\\": \\\"...\\\" } ]\\n}\\nRules: 3–5 items; concise 1–2 lines each; no preamble or extra keys.\\nSituation: \(situation)\\nAudience: \(audience)\\nLocale: \(locale)"
 
         var req = URLRequest(url: apiURL)
         req.httpMethod = "POST"
@@ -38,7 +41,8 @@ actor AIClient {
 
         let body: [String: Any] = [
             "model": model,
-            "temperature": 0.7,
+            "temperature": 0.6,
+            "response_format": ["type": "json_object"],
             "messages": [
                 ["role": "system", "content": system],
                 ["role": "user", "content": user]
@@ -48,9 +52,9 @@ actor AIClient {
 
         let (data, response) = try await URLSession.shared.data(for: req)
         if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
-            // Fallback to gpt-4o-mini if 4o-nano is not available on chat completions
+            // Fallback to gpt-4o-mini with JSON mode
             if model == "4o-nano" {
-                return try await generateSparks(situation: situation, audience: audience, locale: locale, model: "gpt-4o-mini")
+                return try await generateSparksStructured(situation: situation, audience: audience, locale: locale, model: "gpt-4o-mini")
             }
             let msg = String(data: data, encoding: .utf8) ?? ""
             throw AIError.server(msg)
@@ -59,7 +63,22 @@ actor AIClient {
         struct Msg: Decodable { let role: String; let content: String }
         struct Resp: Decodable { let choices: [Choice] }
         let decoded = try JSONDecoder().decode(Resp.self, from: data)
-        return decoded.choices.first?.message.content ?? ""
+        guard let content = decoded.choices.first?.message.content,
+              let jsonData = content.data(using: .utf8) else {
+            throw AIError.decoding
+        }
+        do {
+            let parsed = try JSONDecoder().decode(SparksResponse.self, from: jsonData)
+            return parsed.items
+        } catch {
+            if let range = content.range(of: #"\{[\s\S]*\}"#, options: .regularExpression) {
+                let jsonString = String(content[range])
+                if let data2 = jsonString.data(using: .utf8), let parsed = try? JSONDecoder().decode(SparksResponse.self, from: data2) {
+                    return parsed.items
+                }
+            }
+            throw AIError.decoding
+        }
     }
 
     // MARK: - Training (streaming)

@@ -126,13 +126,15 @@ struct GeneratorView: View {
         errorMessage = nil
         Task {
             do {
-                let raw = try await AIClient.shared.generateSparks(situation: situation, audience: audience, locale: "en", model: "4o-nano")
-                // Parse format lines like: - Question: ..., - Observation: ..., - Theme: ...
-                let lines = SafetyFilter.filterSparks(raw)
+                let items = try await AIClient.shared.generateSparksStructured(situation: situation, audience: audience, locale: "en", model: "4o-nano")
                 var out: [Spark] = []
-                for line in lines {
-                    let (stype, text) = parseSpark(line)
-                    out.append(Spark(type: stype, text: text, situationLabel: situation, audienceLabel: audience))
+                for item in items {
+                    let lower = item.type.lowercased()
+                    let type: Spark.SparkType = (lower.contains("question") ? .question : (lower.contains("observation") ? .observation : .theme))
+                    let text = item.text.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !SafetyFilter.isUnsafe(text) {
+                        out.append(Spark(type: type, text: text, situationLabel: situation, audienceLabel: audience))
+                    }
                 }
                 await MainActor.run { self.results = out; self.isLoading = false }
             } catch {
@@ -158,48 +160,7 @@ struct GeneratorView: View {
 
 }
 
-// Robust parser for lines like:
-// "- Question: ...", "• Observation — ...", "Theme - ...", or plain text.
-private func parseSpark(_ line: String) -> (Spark.SparkType, String) {
-    let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
-    // Strip common list bullets and numbering
-    var s = trimmed
-    let bulletPatterns: [String] = ["- ", "• ", "* ", "— ", "– "]
-    for b in bulletPatterns {
-        if s.hasPrefix(b) { s.removeFirst(b.count); break }
-    }
-    if let range = s.range(of: #"^\d+([\.)]|\))\s+"#, options: .regularExpression) {
-        s.removeSubrange(range)
-    }
-    let lower = s.lowercased()
-
-    func stripLabel(_ token: String) -> String? {
-        // Match: token [spaces] [: - – —] [spaces] text
-        let escaped = NSRegularExpression.escapedPattern(for: token)
-        let pattern = "^" + escaped + #"\s*[:\-–—]\s*(.+)$"#
-        guard let re = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else { return nil }
-        let ns = s as NSString
-        let range = NSRange(location: 0, length: ns.length)
-        if let m = re.firstMatch(in: s, range: range), m.numberOfRanges >= 2 {
-            let text = ns.substring(with: m.range(at: 1)).trimmingCharacters(in: .whitespaces)
-            return text
-        }
-        return nil
-    }
-
-    // English + Russian labels
-    let questionLabels = ["question", "questions", "вопрос", "вопросы"]
-    let observationLabels = ["observation", "observations", "comment", "comments", "наблюдение", "наблюдения", "комментарий", "комментарии", "замечание", "замечания"]
-    let themeLabels = ["theme", "themes", "topic", "topics", "тема", "темы"]
-
-    for q in questionLabels { if let text = stripLabel(q) { return (.question, text) } }
-    for o in observationLabels { if let text = stripLabel(o) { return (.observation, text) } }
-    for t in themeLabels { if let text = stripLabel(t) { return (.theme, text) } }
-
-    // Heuristic fallback
-    let inferred: Spark.SparkType = s.contains("?") ? .question : .theme
-    return (inferred, s)
-}
+// Regex-based parsing removed; generator now uses structured JSON from the model.
 
 // Removed filter and grouping to show a mixed list, as requested
 
