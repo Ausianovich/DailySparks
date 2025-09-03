@@ -6,6 +6,7 @@ struct GeneratorView: View {
     @State private var audience: String = ""
     @State private var results: [Spark] = []
     @State private var isLoading = false
+    @State private var errorMessage: String?
 
     @Environment(\.modelContext) private var modelContext
 
@@ -35,19 +36,38 @@ struct GeneratorView: View {
                 }
             }
             .navigationTitle("Generator")
+            .alert("Error", isPresented: .constant(errorMessage != nil), actions: {
+                Button("OK") { errorMessage = nil }
+            }, message: {
+                Text(errorMessage ?? "")
+            })
         }
     }
 
     private func generate() {
         isLoading = true
-        // Placeholder: generate three local sparks until AI integration is wired
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-            results = [
-                Spark(type: .question, text: "What’s your go-to spot nearby?", situationId: nil, situationLabel: situation, audienceId: nil, audienceLabel: audience),
-                Spark(type: .observation, text: "This place has a calm vibe—nice for a weekday.", situationId: nil, situationLabel: situation, audienceId: nil, audienceLabel: audience),
-                Spark(type: .theme, text: "Hidden local gems and small weekend plans.", situationId: nil, situationLabel: situation, audienceId: nil, audienceLabel: audience)
-            ]
-            isLoading = false
+        errorMessage = nil
+        Task {
+            do {
+                let raw = try await AIClient.shared.generateSparks(situation: situation, audience: audience, locale: "en", model: "4o-nano")
+                // Parse format lines like: - Question: ..., - Observation: ..., - Theme: ...
+                let lines = SafetyFilter.filterSparks(raw)
+                var out: [Spark] = []
+                for line in lines {
+                    var type: Spark.SparkType = .question
+                    var text = line
+                    if line.lowercased().hasPrefix("- question:") { type = .question; text = String(line.dropFirst("- question:".count)).trimmingCharacters(in: .whitespaces) }
+                    else if line.lowercased().hasPrefix("- observation:") { type = .observation; text = String(line.dropFirst("- observation:".count)).trimmingCharacters(in: .whitespaces) }
+                    else if line.lowercased().hasPrefix("- theme:") { type = .theme; text = String(line.dropFirst("- theme:".count)).trimmingCharacters(in: .whitespaces) }
+                    out.append(Spark(type: type, text: text, situationLabel: situation, audienceLabel: audience))
+                }
+                await MainActor.run { self.results = out; self.isLoading = false }
+            } catch {
+                await MainActor.run {
+                    self.errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                    self.isLoading = false
+                }
+            }
         }
     }
 
@@ -57,4 +77,3 @@ struct GeneratorView: View {
         try? modelContext.save()
     }
 }
-

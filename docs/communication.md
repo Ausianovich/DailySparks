@@ -16,3 +16,7 @@ This document captures working agreements for language and communication.
 - If there is any conflict, prefer Russian in chat with the PO and English in all persistent project artifacts.
 - UX-facing copy language decisions are handled in product specs; default to English unless explicitly specified otherwise.
 
+## Workflow Agreements
+
+- Git commits: Perform commits only when explicitly requested by the Product Owner in chat. Do not auto-commit changes.
+- When commits are requested, include concise, meaningful messages and scope changes to the requested task.
