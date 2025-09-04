@@ -85,7 +85,7 @@ actor AIClient {
     }
 
     // MARK: - Training (streaming)
-    func streamTrainingReply(persona: String, context: String, transcript: [DialogueTurn], locale: String = "en", model: String = "4o-nano") -> AsyncThrowingStream<String, Error> {
+    func streamTrainingReply(persona: String, context: String, transcript: [DialogueTurn], locale: String = "en", model: String = "gpt-4o-mini") -> AsyncThrowingStream<String, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
@@ -114,15 +114,15 @@ actor AIClient {
 
                     var (bytes, response) = try await URLSession.shared.bytes(for: req)
                     if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
-                        if model == "4o-nano" {
-                            // Retry with gpt-4o-mini
+                        if model == "gpt-4o-mini" {
+                            // Retry with 4o-nano as fallback
                             var req2 = URLRequest(url: apiURL)
                             req2.httpMethod = "POST"
                             req2.setValue("application/json", forHTTPHeaderField: "Content-Type")
                             req2.setValue("text/event-stream", forHTTPHeaderField: "Accept")
                             req2.setValue(try authHeader(), forHTTPHeaderField: "Authorization")
                             let body2: [String: Any] = [
-                                "model": "gpt-4o-mini",
+                                "model": "4o-nano",
                                 "temperature": 0.6,
                                 "stream": true,
                                 "messages": messages
