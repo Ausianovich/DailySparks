@@ -18,6 +18,7 @@ struct TrainingView: View {
     @State private var recentRepairs: [String] = []
     @State private var streamBuffer: String = ""
     @State private var lastStreamFlush: Date = .now
+    @State private var streamTask: Task<Void, Never>? = nil
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
@@ -75,14 +76,30 @@ struct TrainingView: View {
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled(true)
                     .submitLabel(.return) // show Return, not Send; Return inserts newline
+
+                // Right action button: Stop (streaming) / Retry (error) / Send (idle)
                 if isStreaming {
-                    ProgressView().scaleEffect(0.8)
+                    Button(action: cancelStream) {
+                        Image(systemName: "stop.circle")
+                            .foregroundStyle(.red)
+                            .font(.system(size: 18, weight: .semibold))
+                    }
+                    .accessibilityLabel("Stop")
+                } else if errorMessage != nil {
+                    Button(action: retryStream) {
+                        Image(systemName: "arrow.counterclockwise")
+                            .foregroundStyle(.accent)
+                            .font(.system(size: 18, weight: .semibold))
+                    }
+                    .accessibilityLabel("Retry")
                 } else {
                     Button(action: send) {
                         Image(systemName: "paperplane.fill")
                             .foregroundStyle(.accent)
+                            .font(.system(size: 18, weight: .semibold))
                     }
-                    .disabled(input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isStreaming)
+                    .disabled(input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .accessibilityLabel("Send")
                 }
             }
             .padding()
@@ -146,6 +163,10 @@ struct TrainingView: View {
                 }
             }
         }
+        .onDisappear {
+            // Ensure we stop any in-flight stream when leaving the screen
+            cancelStream()
+        }
     }
 
     private func scrollToBottom(_ proxy: ScrollViewProxy, animated: Bool = true) {
@@ -172,12 +193,17 @@ struct TrainingView: View {
     }
 
     private func streamFromAI() {
+        // If there is a pending empty AI turn from a previous attempt, remove it first
+        if hasPendingEmptyAITurn {
+            _ = transcript.popLast()
+        }
         // Use transcript context before adding the empty AI turn
         let contextTranscript = transcript
         transcript.append(.init(role: .ai, text: ""))
         let aiIndex = transcript.count - 1
         errorMessage = nil
-        Task {
+        streamTask?.cancel()
+        streamTask = Task { [contextTranscript] in
             let persona = personaLabel
             let context = scenarioId == "corporate" ? "Corporate mixer" : "Light first date"
             do {
@@ -202,7 +228,9 @@ struct TrainingView: View {
                     await MainActor.run { transcript[aiIndex].text.append(contentsOf: chunk) }
                 }
             } catch {
-                await MainActor.run { errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription }
+                if (error as? CancellationError) == nil {
+                    await MainActor.run { errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription }
+                }
             }
             await MainActor.run { isStreaming = false }
         }
@@ -296,6 +324,28 @@ struct TrainingView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Streaming controls
+    private var hasPendingEmptyAITurn: Bool {
+        if let last = transcript.last { return last.role == .ai && last.text.isEmpty }
+        return false
+    }
+
+    private var canRetry: Bool {
+        return !isStreaming && (hasPendingEmptyAITurn || errorMessage != nil)
+    }
+
+    private func retryStream() {
+        errorMessage = nil
+        isStreaming = true
+        streamFromAI()
+    }
+
+    private func cancelStream() {
+        streamTask?.cancel()
+        streamTask = nil
+        isStreaming = false
     }
 
     private func saveSession() {
