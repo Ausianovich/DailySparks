@@ -253,12 +253,13 @@ struct TrainingView: View {
             do {
                 // Build avoid list from recent transcript and past repairs
                 let avoid = buildAvoidList()
-                var suggestion = try await AIClient.shared.generateRepairSuggestion(kind: kindString, transcript: transcript, avoid: avoid)
+                let scenarioContext = scenarioId == "corporate" ? "Corporate mixer" : "Light first date"
+                var suggestion = try await AIClient.shared.generateRepairSuggestion(kind: kindString, persona: personaLabel, scenarioContext: scenarioContext, transcript: transcript, avoid: avoid)
                 // Deduplicate client-side (simple normalization)
                 if isDuplicateSuggestion(suggestion) {
                     // One retry with extra avoid
                     let extraAvoid = avoid + [suggestion]
-                    suggestion = try await AIClient.shared.generateRepairSuggestion(kind: kindString, transcript: transcript, avoid: extraAvoid)
+                    suggestion = try await AIClient.shared.generateRepairSuggestion(kind: kindString, persona: personaLabel, scenarioContext: scenarioContext, transcript: transcript, avoid: extraAvoid)
                 }
                 await MainActor.run {
                     self.input = suggestion

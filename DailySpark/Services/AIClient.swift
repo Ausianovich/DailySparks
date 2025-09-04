@@ -89,7 +89,7 @@ actor AIClient {
         AsyncThrowingStream { continuation in
             Task {
                 do {
-                    let system = "You role-play a realistic persona in a casual setting. Keep replies 1–3 sentences, friendly, and natural. Seed subtle hooks the user can pick up. Respect safety policy. Persona: \(persona) Context: \(context)"
+                    let system = "You role‑play a realistic persona in a casual setting. Keep replies 1–3 sentences, friendly, natural, and varied. Do not always end with a question. Aim for ~40% of turns to end with a question; otherwise end with a light observation, acknowledgement, or invitation that the user can build on. Never ask two questions in a row; if the user just asked a question, answer briefly and add a small statement or bridge without asking another question. Seed subtle hooks the user can pick up. Respect safety policy. Persona: \(persona) Context: \(context)"
 
                     var messages: [[String: String]] = [["role": "system", "content": system]]
                     // Include last few turns
@@ -207,21 +207,21 @@ actor AIClient {
     }
 
     // MARK: - Repair suggestions (non-streaming)
-    func generateRepairSuggestion(kind: String, transcript: [DialogueTurn], locale: String = "en", model: String = "4o-nano", avoid: [String] = []) async throws -> String {
-        let system = "You are a discreet conversation coach. Provide ONE concise line the user can say next. Keep it friendly, natural, and safe for casual conversation."
+    func generateRepairSuggestion(kind: String, persona: String, scenarioContext: String, transcript: [DialogueTurn], locale: String = "en", model: String = "4o-nano", avoid: [String] = []) async throws -> String {
+        let system = "You are a discreet conversation coach inside an ongoing chat. Provide ONE concise line the user can say next. Keep it friendly, natural, and safe for casual conversation. Tie your line to the current topic when possible."
         let lastTurns = transcript.suffix(8).map { t in
             let role = (t.role == .user) ? "user" : (t.role == .ai ? "ai" : "hint")
             return "\(role): \(t.text)"
         }.joined(separator: "\n")
         let instruction: String
         switch kind.lowercased() {
-        case "rephrase": instruction = "Rephrase the user's last message to sound warmer and more open."
-        case "pivot": instruction = "Offer a gentle pivot line to a safe, light topic connected to the context."
-        case "open": instruction = "Propose one open question that invites a short story or preference."
+        case "rephrase": instruction = "Rephrase the user's last message to sound warmer, more open, and directly connected to what was just said."
+        case "pivot": instruction = "Offer a gentle pivot line that bridges from a mentioned detail to a safe, light topic relevant to the scenario."
+        case "open": instruction = "Propose one open question that invites a short story or preference, referencing a detail from the last turn."
         default: instruction = "Propose a friendly, open follow-up line."
         }
         let avoidBlock: String = avoid.isEmpty ? "" : ("\nDo NOT repeat or closely paraphrase any of these lines:" + avoid.prefix(6).map { "\n• \($0)" }.joined())
-        let user = "Context locale=\(locale). Return only the line, no quotes, no prefix.\nGoal: \(instruction)\nTranscript:\n\(lastTurns)\(avoidBlock)"
+        let user = "Context locale=\(locale). Return only the line, no quotes, no prefix.\nScenario: \(scenarioContext)\nPartner persona: \(persona)\nGoal: \(instruction)\nRules: 8–18 words; natural tone; reference a concrete word or detail from the last 1–2 turns if possible; avoid yes/no questions unless playful.\nTranscript (last turns):\n\(lastTurns)\(avoidBlock)"
 
         var req = URLRequest(url: apiURL)
         req.httpMethod = "POST"
@@ -242,7 +242,7 @@ actor AIClient {
         let (data, response) = try await URLSession.shared.data(for: req)
         if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
             if model == "4o-nano" {
-                return try await generateRepairSuggestion(kind: kind, transcript: transcript, locale: locale, model: "gpt-4o-mini", avoid: avoid)
+                return try await generateRepairSuggestion(kind: kind, persona: persona, scenarioContext: scenarioContext, transcript: transcript, locale: locale, model: "gpt-4o-mini", avoid: avoid)
             }
             let msg = String(data: data, encoding: .utf8) ?? ""
             throw AIError.server(msg)
