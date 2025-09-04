@@ -83,49 +83,21 @@
           "codeOffers" : [
 
           ],
-          "displayPrice" : "0.99",
+          "displayPrice" : "12.99",
           "familyShareable" : false,
-          "groupNumber" : 2,
+          "groupNumber" : 1,
           "internalID" : "2B03619B",
           "introductoryOffer" : null,
           "localizations" : [
             {
-              "description" : "",
-              "displayName" : "",
+              "description" : "Train you skills without any limits",
+              "displayName" : "Montly",
               "locale" : "en_US"
             }
           ],
           "productID" : "com.example.dailyspark.subscriptions.monthly",
           "recurringSubscriptionPeriod" : "P1M",
           "referenceName" : "Montly",
-          "subscriptionGroupID" : "E1B09FBE",
-          "type" : "RecurringSubscription",
-          "winbackOffers" : [
-
-          ]
-        },
-        {
-          "adHocOffers" : [
-
-          ],
-          "codeOffers" : [
-
-          ],
-          "displayPrice" : "7.99",
-          "familyShareable" : false,
-          "groupNumber" : 1,
-          "internalID" : "EE465D0A",
-          "introductoryOffer" : null,
-          "localizations" : [
-            {
-              "description" : "",
-              "displayName" : "",
-              "locale" : "en_US"
-            }
-          ],
-          "productID" : "com.example.dailyspark.subscriptions.annual",
-          "recurringSubscriptionPeriod" : "P1Y",
-          "referenceName" : "Annual",
           "subscriptionGroupID" : "E1B09FBE",
           "type" : "RecurringSubscription",
           "winbackOffers" : [

@@ -57,37 +57,44 @@ struct OnboardingView: View {
                 }
             }
             .fullScreenCover(isPresented: $showPaywall, onDismiss: { finish() }) {
-                NavigationStack {
                     SubscriptionStoreView(groupID: "E1B09FBE", visibleRelationships: .upgrade) {
                         VStack {
-                            Spacer()
-                            Text("unlock_potential_title")
-                                .font(.title)
-                                .foregroundStyle(.white)
-                                .multilineTextAlignment(.center)
-                                .bold()
-                            Spacer()
-                            HStack {
-                                VStack(alignment: .leading) {
-                                    Text("Generate dialogs")
-                                    Text("Train your smalltalks skills")
+                            ZStack {
+                                VStack {
+                                    Image(.group)
+                                        .resizable()
+                                        .scaledToFill()
                                 }
-                                .padding(.horizontal, 20.0)
-                                Spacer()
+                                .containerRelativeFrame(.horizontal)
+                                .clipped()
+                                VStack {
+                                    Text("Ready for Any Conversation")
+                                        .font(.largeTitle)
+                                        .foregroundStyle(.white)
+                                        .multilineTextAlignment(.center)
+                                        .bold()
+                                }
+                                .padding()
                             }
+                            VStack(alignment: .leading) {
+                                ForEach(promotions, id: \.self) { text in
+                                    HStack(alignment: .top) {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .foregroundStyle(Color.accentColor)
+                                        Text(text)
+                                            .multilineTextAlignment(.leading)
+                                    }
+                                    .font(.title2)
+                                }
+                            }
+                            .padding(.horizontal, 20.0)
                         }
                     }
                     .storeButton(.hidden, for: .cancellation)
                     .storeButton(.visible, for: .restorePurchases)
                     .subscriptionStorePolicyForegroundStyle(.white)
-                    .subscriptionStoreControlStyle(.prominentPicker)
-                    .subscriptionStoreControlIcon(icon: { subscription, info in
-                        switch info.groupLevel {
-                        case 1: Image(systemName: "pentagon.fill").foregroundStyle(Color.accentColor)
-                        case 2: Image(systemName: "hexagon.fill").foregroundStyle(Color.accentColor)
-                        default: EmptyView()
-                        }
-                    })
+                    .subscriptionStoreControlStyle(.buttons)
+                    .background(LinearGradient(colors: [Color.accentColor, .white], startPoint: .top, endPoint: .bottom))
                     .onInAppPurchaseCompletion { product, result in
                         
                         switch result {
@@ -105,7 +112,6 @@ struct OnboardingView: View {
                             errorIsPresented = false
                         }))
                     })
-                }
                 .interactiveDismissDisabled(true)
             }
         }
@@ -119,6 +125,14 @@ struct OnboardingView: View {
     private func completeOnboarding() { showPaywall = false }
     private func finish() { withAnimation { isPresented = false } }
 }
+
+let promotions: [String] = [
+    "Unlimited training: realistic personas and scenarios.",
+    "Deeper feedback: concise, actionable tips.",
+    "More options: expanded personas and presets.",
+    "Growing library: new lessons and sparks.",
+    "Privacy-first: on-device storage control.",
+]
 
 private struct OBPage: View {
     let systemImage: String
