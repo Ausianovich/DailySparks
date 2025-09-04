@@ -9,14 +9,14 @@ struct TrainingSetupView: View {
             Form {
                 Section("Choose who to chat with") {
                     ForEach(candidatePersonas) { p in
-                        HStack(alignment: .top) {
+                        HStack(alignment: .center) {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(p.title).font(.body)
                                 Text(p.description).font(.caption).foregroundStyle(.secondary)
                             }
                             Spacer()
                             if selectedPersona?.id == p.id {
-                                Image(systemName: "checkmark.circle.fill").foregroundStyle(.tint)
+                                Image(systemName: "checkmark").foregroundStyle(.tint)
                             }
                         }
                         .contentShape(Rectangle())
