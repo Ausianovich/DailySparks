@@ -33,6 +33,9 @@ struct DailySparkApp: App {
 }
 
 struct RootView: View {
+//    @AppStorage("didCompleteOnboarding") private var didCompleteOnboarding: Bool = false
+    @State private var didCompleteOnboarding: Bool = false
+    @State private var showOnboarding: Bool = false
     var body: some View {
         TabView {
             GeneratorView()
@@ -43,6 +46,18 @@ struct RootView: View {
                 .tabItem { Label("Library", systemImage: "book") }
             SettingsView()
                 .tabItem { Label("Settings", systemImage: "gear") }
+        }
+        .fullScreenCover(isPresented: $showOnboarding) {
+            OnboardingView(isPresented: Binding(
+                get: { !didCompleteOnboarding },
+                set: { newValue in didCompleteOnboarding = !newValue; showOnboarding = newValue }
+            ))
+        }
+        .onAppear {
+            // Show onboarding only on first launch or when explicitly reset
+            if didCompleteOnboarding == false {
+                showOnboarding = true
+            }
         }
     }
 }
