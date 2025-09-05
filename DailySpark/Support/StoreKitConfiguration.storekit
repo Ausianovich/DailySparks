@@ -18,9 +18,15 @@
   ],
   "settings" : {
     "_applicationInternalID" : "6752035046",
+    "_askToBuyEnabled" : false,
+    "_compatibilityTimeRate" : {
+      "3" : 6
+    },
     "_developerTeamID" : "R5QJ62638A",
     "_failTransactionsEnabled" : false,
     "_lastSynchronizedDate" : 778791270.74026501,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
     "_storeKitErrors" : [
       {
         "current" : null,
@@ -67,7 +73,8 @@
         "enabled" : false,
         "name" : "Offer Code Redeem Sheet"
       }
-    ]
+    ],
+    "_timeRate" : 15
   },
   "subscriptionGroups" : [
     {
