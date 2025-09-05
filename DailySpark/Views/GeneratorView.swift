@@ -15,8 +15,11 @@ struct GeneratorView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
+            ZStack {
+                Color(UIColor.systemGroupedBackground)
+                    .ignoresSafeArea()
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
                     // Context inputs
                     CardSection(title: "Context") {
                         VStack(alignment: .leading, spacing: 10) {
@@ -89,7 +92,14 @@ struct GeneratorView: View {
                     VStack(alignment: .leading, spacing: 10) {
                         if isLoading && results.isEmpty {
                             ForEach(0..<3, id: \.self) { _ in
-                                RoundedRectangle(cornerRadius: 12).fill(Color.secondary.opacity(0.08)).frame(height: 64).redacted(reason: .placeholder)
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Color(UIColor.secondarySystemGroupedBackground))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color(UIColor.separator).opacity(0.15))
+                                    )
+                                    .frame(height: 64)
+                                    .redacted(reason: .placeholder)
                             }
                         } else if results.isEmpty {
                             VStack(alignment: .leading, spacing: 4) {
@@ -113,10 +123,11 @@ struct GeneratorView: View {
                         }
                     }
 
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
+                    .padding(.bottom, 100)
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 12)
-                .padding(.bottom, 100)
             }
             .navigationTitle("Generator")
             .alert("Error", isPresented: .constant(errorMessage != nil)) { Button("OK") { errorMessage = nil } } message: { Text(errorMessage ?? "") }
@@ -345,7 +356,11 @@ private struct SparkRowView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color.secondary.opacity(0.08))
+                .fill(Color(UIColor.secondarySystemGroupedBackground))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color(UIColor.separator).opacity(0.2))
         )
         .overlay(alignment: .leading) {
             RoundedRectangle(cornerRadius: 2)
@@ -476,6 +491,13 @@ private struct CardSection<Content: View>: View {
             .padding(.horizontal, 12)
             content()
         }
-        .background(RoundedRectangle(cornerRadius: 12).fill(Color.secondary.opacity(0.08)))
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(UIColor.secondarySystemGroupedBackground))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color(UIColor.separator).opacity(0.15))
+        )
     }
 }
