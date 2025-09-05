@@ -10,6 +10,8 @@ struct GeneratorView: View {
     @State private var toastText: String? = nil
     @State private var tone: Tone = .friendly
     @State private var length: Length = .short
+    @State private var showAllSituations: Bool = false
+    @State private var showAllAudiences: Bool = false
 
     @Environment(\.modelContext) private var modelContext
 
@@ -17,31 +19,28 @@ struct GeneratorView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    // Presets
+                    // Presets — redesigned as adaptive grids
                     CardSection(title: "Presets") {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Situations").font(.caption).foregroundStyle(.secondary)
-                                .padding(.horizontal, 12)
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                LazyHStack(spacing: -12) {
-                                    ForEach(Presets.situations, id: \.self) { item in
-                                        ChipButton(title: item) { situation = item }
-                                            .padding(.horizontal, 12)
-                                    }
-                                }.padding(.vertical, 2)
-                            }
-                            Text("Audiences").font(.caption).foregroundStyle(.secondary)
-                                .padding(.horizontal, 12)
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                LazyHStack(spacing: -12) {
-                                    ForEach(Presets.audiences, id: \.self) { item in
-                                        ChipButton(title: item) { audience = item }
-                                            .padding(.horizontal, 12)
-                                    }
-                                }.padding(.vertical, 2)
-                            }
+                        VStack(alignment: .leading, spacing: 14) {
+                            PresetGridSection(
+                                title: "Situations",
+                                items: Presets.situations,
+                                isExpanded: $showAllSituations,
+                                selected: situation,
+                                onSelect: { situation = $0 }
+                            )
+                            .padding(.horizontal, 12)
+
+                            PresetGridSection(
+                                title: "Audiences",
+                                items: Presets.audiences,
+                                isExpanded: $showAllAudiences,
+                                selected: audience,
+                                onSelect: { audience = $0 }
+                            )
+                            .padding(.horizontal, 12)
                         }
-                        .padding(.bottom, 8)
+                        .padding(.bottom, 10)
                     }
 
                     // Context inputs
@@ -240,6 +239,140 @@ private extension GeneratorView {
                 await MainActor.run { self.errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription }
             }
         }
+    }
+}
+
+// MARK: - Presets UI (Redesigned)
+private struct PresetGridSection: View {
+    let title: String
+    let items: [String]
+    @Binding var isExpanded: Bool
+    let selected: String?
+    var onSelect: (String) -> Void
+
+    private var orderedItems: [String] {
+        guard let s = selected, let idx = items.firstIndex(of: s) else { return items }
+        var arr = items
+        arr.remove(at: idx)
+        return [s] + arr
+    }
+
+    private var displayItems: [String] {
+        if isExpanded { return items }
+        // compact: show only first two items by default
+        return Array(orderedItems.prefix(2))
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(title).font(.caption).foregroundStyle(.secondary)
+                Spacer()
+                if items.count > 2 {
+                    Button(action: { withAnimation(.easeInOut) { isExpanded.toggle() } }) {
+                        Label(isExpanded ? "Show less" : "Show more", systemImage: isExpanded ? "chevron.up" : "chevron.down")
+                            .labelStyle(.titleAndIcon)
+                    }
+                    .font(.footnote)
+                    .buttonStyle(.plain)
+                }
+            }
+
+            LazyVStack(alignment: .leading, spacing: 8) {
+                ForEach(isExpanded ? orderedItems : displayItems, id: \.self) { item in
+                    PresetCardButton(text: item, isSelected: item == selected) {
+                        onSelect(item)
+                        withAnimation(.easeInOut) { isExpanded = false }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct PresetCardButton: View {
+    let text: String
+    var isSelected: Bool = false
+    var action: () -> Void
+
+    private var parts: (category: String?, label: String) {
+        let comps = text.split(separator: "—", maxSplits: 1).map { $0.trimmingCharacters(in: .whitespaces) }
+        if comps.count == 2 { return (String(comps[0]), String(comps[1])) }
+        return (nil, text)
+    }
+
+    var body: some View {
+        Button(action: action) {
+            HStack(alignment: .center, spacing: 8) {
+                if let cat = parts.category, !cat.isEmpty {
+                    ZStack {
+                        Circle().fill((isSelected ? Color.accentColor : categoryColor(cat)).opacity(0.18))
+                        Image(systemName: categoryIcon(cat))
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(isSelected ? Color.accentColor : categoryColor(cat))
+                    }
+                    .frame(width: 26, height: 26)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(parts.label)
+                        .font(.subheadline)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                    if let cat = parts.category, !cat.isEmpty {
+                        Text(cat)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(height: 64, alignment: .center)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(isSelected ? Color.accentColor.opacity(0.12) : Color.secondary.opacity(0.08))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(isSelected ? Color.accentColor.opacity(0.8) : Color.clear, lineWidth: isSelected ? 1.5 : 0)
+            )
+        }
+        .buttonStyle(.plain)
+        .contentShape(RoundedRectangle(cornerRadius: 12))
+        .accessibilityLabel(Text(text))
+    }
+}
+
+private func categoryIcon(_ category: String) -> String {
+    switch category.lowercased() {
+    case "date": return "heart.fill"
+    case "corporate", "work": return "briefcase.fill"
+    case "friends": return "person.2.fill"
+    case "family": return "house.fill"
+    case "neighbors": return "building.2.fill"
+    case "travel": return "airplane"
+    case "events": return "ticket.fill"
+    case "fitness": return "figure.walk"
+    case "hobby": return "puzzlepiece.fill"
+    case "culture": return "theatermasks.fill"
+    default: return "sparkles"
+    }
+}
+
+private func categoryColor(_ category: String) -> Color {
+    switch category.lowercased() {
+    case "date": return .pink
+    case "corporate", "work": return .blue
+    case "friends": return .purple
+    case "family": return .orange
+    case "neighbors": return .teal
+    case "travel": return .mint
+    case "events": return .indigo
+    case "fitness": return .green
+    case "hobby": return .brown
+    case "culture": return .cyan
+    default: return .gray
     }
 }
 
