@@ -70,7 +70,7 @@ struct OnboardingView: View {
                                 VStack {
                                     Text("Ready for Any Conversation")
                                         .font(.largeTitle)
-                                        .foregroundStyle(.white)
+                                        .foregroundStyle(.bullets)
                                         .multilineTextAlignment(.center)
                                         .bold()
                                 }
@@ -80,21 +80,25 @@ struct OnboardingView: View {
                                 ForEach(promotions, id: \.self) { text in
                                     HStack(alignment: .top) {
                                         Image(systemName: "checkmark.circle.fill")
-                                            .foregroundStyle(Color.accentColor)
+                                            .foregroundStyle(Color.bullets)
                                         Text(text)
                                             .multilineTextAlignment(.leading)
+                                            .foregroundStyle(Color.promoText)
                                     }
-                                    .font(.title2)
+                                    .font(.title3)
+                                    .bold()
                                 }
                             }
-                            .padding(.horizontal, 20.0)
+                            .padding(.horizontal, 12.0)
                         }
                     }
                     .storeButton(.hidden, for: .cancellation)
                     .storeButton(.visible, for: .restorePurchases)
                     .subscriptionStorePolicyForegroundStyle(.white)
                     .subscriptionStoreControlStyle(.buttons)
+                    .subscriptionStoreButtonLabel(.action)
                     .background(LinearGradient(colors: [Color.accentColor, .white], startPoint: .top, endPoint: .bottom))
+                    .tint(Color.bullets)
                     .onInAppPurchaseCompletion { product, result in
                         
                         switch result {
@@ -127,11 +131,10 @@ struct OnboardingView: View {
 }
 
 let promotions: [String] = [
-    "Unlimited training: realistic personas and scenarios.",
-    "Deeper feedback: concise, actionable tips.",
-    "More options: expanded personas and presets.",
-    "Growing library: new lessons and sparks.",
-    "Privacy-first: on-device storage control.",
+    "Unlimited practice — any role, any scenario.",
+    "Smart feedback — speak with confidence.",
+    "More personas, more presets, more fun.",
+    "Your data stays yours — full control.",
 ]
 
 private struct OBPage: View {
@@ -156,4 +159,12 @@ private struct OBPage: View {
         }
         .padding(.horizontal)
     }
+}
+
+#Preview {
+    OBPage(
+        systemImage: "sparkles",
+        title: "Break the ice",
+        subtitle: "Generate light, safe conversation sparks for any situation."
+    )
 }
