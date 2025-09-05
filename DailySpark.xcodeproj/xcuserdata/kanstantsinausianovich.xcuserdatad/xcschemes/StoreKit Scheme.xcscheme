@@ -74,6 +74,12 @@
             ReferencedContainer = "container:DailySpark.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
+      <CommandLineArguments>
+         <CommandLineArgument
+            argument = "-subscribed"
+            isEnabled = "YES">
+         </CommandLineArgument>
+      </CommandLineArguments>
       <StoreKitConfigurationFileReference
          identifier = "../../DailySpark/Support/StoreKitConfiguration.storekit">
       </StoreKitConfigurationFileReference>

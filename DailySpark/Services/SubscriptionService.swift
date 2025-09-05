@@ -7,6 +7,10 @@ enum SubscriptionService {
     static func hasActiveSubscription(groupID: String) async -> Bool {
         // Iterate through current entitlements; this only includes active (non-expired, non-revoked).
         
+        if ProcessInfo.processInfo.arguments.contains("-subscribed") {
+            return true
+        }
+        
         var statuses: [Product.SubscriptionInfo.Status] = []
         
         for await entitlement in Transaction.currentEntitlements {
@@ -28,10 +32,21 @@ final class SubscriptionsObserver {
     }
     
     deinit {
+        if ProcessInfo.processInfo.arguments.contains("-subscribed") {
+            disabled = false
+            return
+        }
+        
         updates?.cancel()
     }
     
     func updateStatuses() async {
+        
+        if ProcessInfo.processInfo.arguments.contains("-subscribed") {
+            disabled = false
+            return
+        }
+        
         var statuses: [Product.SubscriptionInfo.Status] = []
         
         for await result in Transaction.currentEntitlements {

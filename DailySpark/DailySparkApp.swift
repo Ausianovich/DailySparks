@@ -51,10 +51,6 @@ struct RootView: View {
             SettingsView()
                 .tabItem { Label("Settings", systemImage: "gear") }
         }
-//        .task {
-//            await subscriptionsObserver.updateStatuses()
-//            showPaywall = subscriptionsObserver.disabled
-//        }
         .onChange(of: phase) { _, new in
             if new == .active {
                 Task { @MainActor in
@@ -78,16 +74,5 @@ struct RootView: View {
                 showPaywall = false
             }
         }
-//        .onAppear {
-//            // Show onboarding only on first launch or when explicitly reset
-//            if didCompleteOnboarding == false {
-//                showOnboarding = true
-//            } else {
-//                Task { @MainActor in
-//                    let hasSub = await SubscriptionService.hasActiveSubscription(groupID: SubscriptionService.subscriptionGroupID)
-//                    if !hasSub { showPaywall = true }
-//                }
-//            }
-//        }
     }
 }
