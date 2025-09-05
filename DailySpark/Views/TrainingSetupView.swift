@@ -44,7 +44,6 @@ struct TrainingSetupView: View {
                 }
             }
             .navigationTitle("Training Setup")
-            .navigationBarTitleDisplayMode(.inline)
             .refreshable { await regenerate() }
             .onAppear {
                 if selectedPersona == nil { selectedPersona = candidatePersonas.first }

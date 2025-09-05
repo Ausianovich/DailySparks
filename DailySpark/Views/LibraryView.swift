@@ -81,7 +81,6 @@ struct LibraryView: View {
                 }
             }
             .navigationTitle("Library")
-            .navigationBarTitleDisplayMode(.inline)
         }
     }
 
