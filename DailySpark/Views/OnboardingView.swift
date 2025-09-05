@@ -89,7 +89,7 @@ struct OnboardingView: View {
                 }
             }
             .fullScreenCover(isPresented: $showPaywall, onDismiss: { finish() }) {
-                    SubscriptionStoreView(groupID: "E1B09FBE", visibleRelationships: .upgrade) {
+                    SubscriptionStoreView(groupID: "21774164", visibleRelationships: .upgrade) {
                         VStack {
                             ZStack {
                                 VStack {

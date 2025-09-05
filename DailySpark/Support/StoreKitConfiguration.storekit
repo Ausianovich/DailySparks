@@ -9,7 +9,7 @@
       }
     ]
   },
-  "identifier" : "E83F9ADD",
+  "identifier" : "5F77DB41",
   "nonRenewingSubscriptions" : [
 
   ],
@@ -17,9 +17,10 @@
 
   ],
   "settings" : {
+    "_applicationInternalID" : "6752035046",
+    "_developerTeamID" : "R5QJ62638A",
     "_failTransactionsEnabled" : false,
-    "_locale" : "en_US",
-    "_storefront" : "USA",
+    "_lastSynchronizedDate" : 778791270.74026501,
     "_storeKitErrors" : [
       {
         "current" : null,
@@ -70,11 +71,11 @@
   },
   "subscriptionGroups" : [
     {
-      "id" : "E1B09FBE",
+      "id" : "21774164",
       "localizations" : [
 
       ],
-      "name" : "com.example.dailyspark.subscriptions",
+      "name" : "Daily Sparks Subscription",
       "subscriptions" : [
         {
           "adHocOffers" : [
@@ -86,19 +87,19 @@
           "displayPrice" : "12.99",
           "familyShareable" : false,
           "groupNumber" : 1,
-          "internalID" : "2B03619B",
+          "internalID" : "6752036554",
           "introductoryOffer" : null,
           "localizations" : [
             {
-              "description" : "Train you skills without any limits",
-              "displayName" : "Montly",
+              "description" : "All tools. One monthly subscription.",
+              "displayName" : "Monthly Subscription",
               "locale" : "en_US"
             }
           ],
-          "productID" : "com.example.dailyspark.subscriptions.monthly",
+          "productID" : "com.ausianovich.dailysparks.subscriptions.monthly",
           "recurringSubscriptionPeriod" : "P1M",
-          "referenceName" : "Montly",
-          "subscriptionGroupID" : "E1B09FBE",
+          "referenceName" : "Monthly Subscription",
+          "subscriptionGroupID" : "21774164",
           "type" : "RecurringSubscription",
           "winbackOffers" : [
 
