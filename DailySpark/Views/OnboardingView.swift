@@ -165,7 +165,19 @@ struct OnboardingView: View {
             presentPaywall()
         }
     }
-    private func presentPaywall() { showPaywall = true }
+    private func presentPaywall() {
+        // Check subscription first; only show paywall if needed
+        Task { await presentPaywallChecked() }
+    }
+    @MainActor
+    private func presentPaywallChecked() async {
+        let hasSub = await SubscriptionService.hasActiveSubscription(groupID: "E1B09FBE")
+        if hasSub {
+            finish()
+        } else {
+            showPaywall = true
+        }
+    }
     private func completeOnboarding() { showPaywall = false }
     private func finish() { withAnimation { isPresented = false } }
 }
