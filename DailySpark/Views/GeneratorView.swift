@@ -66,10 +66,16 @@ struct GeneratorView: View {
                     }
 
                     // Results header (no card) and list
-                    HStack {
+                    HStack(alignment: .center) {
                         Text("Fresh Sparks").font(.headline)
                         Spacer()
-                        if !results.isEmpty { Button(action: saveAll) { Image(systemName: "tray.and.arrow.down.fill") } .buttonStyle(.plain) }
+                        if !results.isEmpty {
+                            Button(action: saveAll) {
+                                Label("Save All", systemImage: "tray.and.arrow.down.fill")
+                            }
+                            .buttonStyle(.bordered)
+                            .font(.footnote)
+                        }
                     }
                     VStack(alignment: .leading, spacing: 10) {
                         if isLoading && results.isEmpty {
@@ -77,7 +83,12 @@ struct GeneratorView: View {
                                 RoundedRectangle(cornerRadius: 12).fill(Color.secondary.opacity(0.08)).frame(height: 64).redacted(reason: .placeholder)
                             }
                         } else if results.isEmpty {
-                            Text("No sparks yet.").foregroundStyle(.secondary)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("No sparks yet.").foregroundStyle(.secondary)
+                                Text("Enter context and tap Generate.")
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
                         } else {
                             ForEach(results, id: \.id) { spark in
                                 SparkRowView(
@@ -409,18 +420,49 @@ private struct SparkRowView: View {
     var onSave: (() -> Void)? = nil
 
     var body: some View {
-        ZStack(alignment: .topLeading) {
-            // Card background
-            RoundedRectangle(cornerRadius: 12).fill(Color.secondary.opacity(0.08))
-            // Text content
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                TypePill(typeRaw: spark.typeRaw)
+                Spacer()
+                if let onCopy {
+                    Button(action: onCopy) {
+                        Image(systemName: "doc.on.doc")
+                            .font(.system(size: 12, weight: .semibold))
+                            .padding(.vertical, 6)
+                            .padding(.horizontal, 8)
+                            .background(Capsule().fill(Color.secondary.opacity(0.12)))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Copy")
+                }
+                if let onSave {
+                    Button(action: onSave) {
+                        Image(systemName: "tray.and.arrow.down")
+                            .font(.system(size: 12, weight: .semibold))
+                            .padding(.vertical, 6)
+                            .padding(.horizontal, 8)
+                            .background(Capsule().fill(Color.secondary.opacity(0.12)))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Save")
+                }
+            }
             Text(MarkdownHelper.attributed(from: spark.text))
                 .font(.body)
                 .multilineTextAlignment(.leading)
                 .lineSpacing(1.5)
-                .padding(12)
-            // Badge overlay pinned to top-left corner
-            TypeBadge(typeRaw: spark.typeRaw)
-                .offset(x: -8, y: -8)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.secondary.opacity(0.08))
+        )
+        .overlay(alignment: .leading) {
+            RoundedRectangle(cornerRadius: 2)
+                .fill(markerColor(for: spark.typeRaw))
+                .frame(width: 4)
+                .padding(.vertical, 8)
         }
         .transition(.asymmetric(insertion: .move(edge: .bottom).combined(with: .opacity), removal: .opacity))
         .contentShape(Rectangle())
@@ -430,6 +472,21 @@ private struct SparkRowView: View {
             if let onSave { Button(action: onSave) { Label("Save", systemImage: "tray.and.arrow.down") } }
             ShareLink(item: spark.text) { Label("Share", systemImage: "square.and.arrow.up") }
         }
+    }
+}
+
+private struct TypePill: View {
+    let typeRaw: String
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: iconName(for: typeRaw))
+            Text(typeDisplayName(for: typeRaw))
+        }
+        .font(.caption)
+        .foregroundStyle(markerColor(for: typeRaw))
+        .padding(.vertical, 4)
+        .padding(.horizontal, 8)
+        .background(Capsule().fill(markerColor(for: typeRaw).opacity(0.12)))
     }
 }
 
@@ -463,6 +520,15 @@ private func iconName(for typeRaw: String) -> String {
     case "observation": return "eye.fill"
     case "theme": return "lightbulb.fill"
     default: return "sparkles"
+    }
+}
+
+private func typeDisplayName(for typeRaw: String) -> String {
+    switch typeRaw.lowercased() {
+    case "question": return "Question"
+    case "observation": return "Observation"
+    case "theme": return "Theme"
+    default: return "Spark"
     }
 }
 
