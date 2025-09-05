@@ -6,8 +6,6 @@ struct OnboardingView: View {
     @Binding var isPresented: Bool
     @State private var page: Int = 0
     @State private var showPaywall: Bool = false
-    @State var errorIsPresented: Bool = false
-    @State private var error: Error? = nil
     @State private var animateIcon: Bool = false
     @State private var pagerIsReady: Bool = false
 
@@ -89,66 +87,10 @@ struct OnboardingView: View {
                 }
             }
             .fullScreenCover(isPresented: $showPaywall, onDismiss: { finish() }) {
-                    SubscriptionStoreView(groupID: "21774164", visibleRelationships: .upgrade) {
-                        VStack {
-                            ZStack {
-                                VStack {
-                                    Image(.group)
-                                        .resizable()
-                                        .scaledToFill()
-                                }
-                                .containerRelativeFrame(.horizontal)
-                                .clipped()
-                                VStack {
-                                    Text("Ready for Any Conversation")
-                                        .font(.largeTitle)
-                                        .foregroundStyle(.bullets)
-                                        .multilineTextAlignment(.center)
-                                        .bold()
-                                }
-                                .padding()
-                            }
-                            VStack(alignment: .leading) {
-                                ForEach(promotions, id: \.self) { text in
-                                    HStack(alignment: .top) {
-                                        Image(systemName: "checkmark.circle.fill")
-                                            .foregroundStyle(Color.bullets)
-                                        Text(text)
-                                            .multilineTextAlignment(.leading)
-                                            .foregroundStyle(Color.promoText)
-                                    }
-                                    .font(.title3)
-                                    .bold()
-                                }
-                            }
-                            .padding(.horizontal, 12.0)
-                        }
-                    }
-                    .storeButton(.hidden, for: .cancellation)
-                    .storeButton(.visible, for: .restorePurchases)
-                    .subscriptionStorePolicyForegroundStyle(.white)
-                    .subscriptionStoreControlStyle(.buttons)
-                    .subscriptionStoreButtonLabel(.action)
-                    .background(LinearGradient(colors: [Color.accentColor, .white], startPoint: .top, endPoint: .bottom))
-                    .tint(Color.bullets)
-                    .onInAppPurchaseCompletion { product, result in
-                        
-                        switch result {
-                        case .success(.success):
-                            isPresented = false
-                        case .failure(let error):
-                            self.error = error
-                            errorIsPresented = true
-                        default:
-                            break
-                        }
-                    }
-                    .alert(isPresented: $errorIsPresented, content: {
-                        Alert(title: Text("subscription_error"), message: Text(error?.localizedDescription ?? ""), dismissButton: .cancel(Text("ok"), action: {
-                            errorIsPresented = false
-                        }))
-                    })
-                .interactiveDismissDisabled(true)
+                PaywallView {
+                    // purchase success
+                    showPaywall = false
+                }
             }
         }
     }
@@ -171,7 +113,7 @@ struct OnboardingView: View {
     }
     @MainActor
     private func presentPaywallChecked() async {
-        let hasSub = await SubscriptionService.hasActiveSubscription(groupID: "E1B09FBE")
+        let hasSub = await SubscriptionService.hasActiveSubscription(groupID: SubscriptionService.subscriptionGroupID)
         if hasSub {
             finish()
         } else {
@@ -182,12 +124,7 @@ struct OnboardingView: View {
     private func finish() { withAnimation { isPresented = false } }
 }
 
-let promotions: [String] = [
-    "Unlimited practice — any role, any scenario.",
-    "Smart feedback — speak with confidence.",
-    "More personas, more presets, more fun.",
-    "Your data stays yours — full control.",
-]
+// promotions moved into PaywallView
 
 private struct OBPage: View {
     let systemImage: String
