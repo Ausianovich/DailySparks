@@ -51,6 +51,10 @@ struct RootView: View {
             SettingsView()
                 .tabItem { Label("Settings", systemImage: "gear") }
         }
+        .onAppear {
+            // Present onboarding on first launch
+            if !didCompleteOnboarding { showOnboarding = true }
+        }
         .onChange(of: phase) { _, new in
             if new == .active {
                 Task { @MainActor in
