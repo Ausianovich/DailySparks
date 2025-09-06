@@ -11,7 +11,7 @@ actor AIClient {
 
         var errorDescription: String? {
             switch self {
-            case .missingAPIKey: return "OpenAI API key is missing. Add it in Settings."
+            case .missingAPIKey: return "OpenAI API key is missing. Configure it in AppSecrets.openAIKey."
             case .badResponse: return "Bad response from server."
             case .decoding: return "Failed to decode server response."
             case .server(let msg): return msg
@@ -22,8 +22,15 @@ actor AIClient {
     private let apiURL = URL(string: "https://api.openai.com/v1/chat/completions")!
 
     private func authHeader() throws -> String {
-        guard let key = KeychainHelper.loadAPIKey(), !key.isEmpty else { throw AIError.missingAPIKey }
-        return "Bearer \(key)"
+        // Prefer local in-code secret for development
+        if let hardcoded = AppSecrets.openAIKey, !hardcoded.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return "Bearer \(hardcoded)"
+        }
+        // Fallback to Keychain (kept for future flexibility)
+        if let key = KeychainHelper.loadAPIKey(), !key.isEmpty {
+            return "Bearer \(key)"
+        }
+        throw AIError.missingAPIKey
     }
 
     // MARK: - Generator (non-streaming, JSON structured)
