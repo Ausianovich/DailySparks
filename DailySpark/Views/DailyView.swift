@@ -124,7 +124,8 @@ struct DailyView: View {
         }
         isLoadingTip = true
         Task {
-            let tip = (try? await AIClient.shared.generateDailyAdvice(locale: "en")) ?? defaultTips.randomElement() ?? "Ask open questions and listen for details."
+            let tips = (try? await AIClient.shared.generateDailyTips(locale: currentLocaleCode())) ?? []
+            let tip = tips.randomElement() ?? (defaultTips.randomElement() ?? "Ask open questions and listen for details.")
             await MainActor.run {
                 self.dailyTip = tip
                 self.isLoadingTip = false
@@ -140,7 +141,7 @@ struct DailyView: View {
         }
         isLoadingTopics = true
         Task {
-            let arr = (try? await AIClient.shared.generateDailyTopics(count: 4, locale: "en")) ?? defaultTopics.shuffled().prefix(4).map { $0 }
+            let arr = (try? await AIClient.shared.generateDailyTopics(count: 4, locale: currentLocaleCode())) ?? defaultTopics.shuffled().prefix(4).map { $0 }
             await MainActor.run {
                 self.topics = Array(arr)
                 self.isLoadingTopics = false
@@ -159,6 +160,13 @@ struct DailyView: View {
     }
     private func encodeTopics(_ arr: [String]) -> String {
         (try? String(data: JSONEncoder().encode(arr), encoding: .utf8)) ?? "[]"
+    }
+
+    private func currentLocaleCode() -> String {
+        if #available(iOS 16.0, *) {
+            return Locale.current.language.languageCode?.identifier ?? "en"
+        }
+        return Locale.current.languageCode ?? "en"
     }
 
     private let defaultTips: [String] = [

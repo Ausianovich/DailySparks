@@ -92,9 +92,9 @@ actor AIClient {
     }
 
     // MARK: - Daily Tip (non-streaming)
-    func generateDailyAdvice(locale: String = "en", model: String = "4o-nano") async throws -> String {
-        let system = "You are DailySpark, a concise small-talk coach. Provide ONE short daily tip (do/don't) to improve starting, maintaining, or ending light conversation. Keep it friendly, practical, and safe."
-        let user = "Locale: \(locale). Return only the tip line, no preface."
+    func generateDailyAdvice(locale: String = "en", model: String = "gpt-4o-mini") async throws -> String {
+        let system = "You are DailySpark, a concise small‑talk coach. Generate several short, friendly, practical tips about starting, maintaining, or ending light conversation; avoid sensitive topics."
+        let user = "Locale: \(locale). Provide 5 varied one‑line tips. Return JSON only: {\\n  \\\"tips\\\": [\\\"...\\\", \\\"...\\\", \\\"...\\\", \\\"...\\\", \\\"...\\\"]\\n}. Keep each tip 10–20 words, natural, no quotes, no numbering."
 
         var req = URLRequest(url: apiURL)
         req.httpMethod = "POST"
@@ -102,8 +102,9 @@ actor AIClient {
         req.setValue(try authHeader(), forHTTPHeaderField: "Authorization")
         let body: [String: Any] = [
             "model": model,
-            "temperature": 0.5,
-            "max_tokens": 80,
+            "temperature": 0.7,
+            "presence_penalty": 0.6,
+            "response_format": ["type": "json_object"],
             "messages": [
                 ["role": "system", "content": system],
                 ["role": "user", "content": user]
@@ -113,9 +114,7 @@ actor AIClient {
 
         let (data, response) = try await URLSession.shared.data(for: req)
         if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
-            if model == "4o-nano" {
-                return try await generateDailyAdvice(locale: locale, model: "gpt-4o-mini")
-            }
+            if model == "4o-nano" { return try await generateDailyAdvice(locale: locale, model: "gpt-4o-mini") }
             let msg = String(data: data, encoding: .utf8) ?? ""
             throw AIError.server(msg)
         }
@@ -123,7 +122,72 @@ actor AIClient {
         struct Msg: Decodable { let role: String; let content: String }
         struct Resp: Decodable { let choices: [Choice] }
         let decoded = try JSONDecoder().decode(Resp.self, from: data)
-        return decoded.choices.first?.message.content.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard let content = decoded.choices.first?.message.content else { throw AIError.decoding }
+        // Try to parse JSON directly
+        if let jsonData = content.data(using: .utf8) {
+            struct Tips: Decodable { let tips: [String] }
+            if let parsed = try? JSONDecoder().decode(Tips.self, from: jsonData), let choice = parsed.tips.randomElement() {
+                return choice.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+        }
+        // If model wrapped JSON in text, try extracting
+        if let range = content.range(of: #"\{[\s\S]*\}"#, options: .regularExpression) {
+            let jsonString = String(content[range])
+            if let data2 = jsonString.data(using: .utf8) {
+                struct Tips: Decodable { let tips: [String] }
+                if let parsed2 = try? JSONDecoder().decode(Tips.self, from: data2), let choice = parsed2.tips.randomElement() {
+                    return choice.trimmingCharacters(in: .whitespacesAndNewlines)
+                }
+            }
+        }
+        // Fallback to plain text
+        return content.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    // MARK: - Daily Tips (structured list helper)
+    struct DailyTips: Decodable { let tips: [String] }
+
+    func generateDailyTips(locale: String = "en", model: String = "gpt-4o-mini") async throws -> [String] {
+        let system = "You are DailySpark, a concise small‑talk coach. Generate several short, friendly, practical tips about starting, maintaining, or ending light conversation; avoid sensitive topics."
+        let user = "Locale: \(locale). Provide 5 varied one‑line tips. Return JSON only: {\\n  \\\"tips\\\": [\\\"...\\\", \\\"...\\\", \\\"...\\\", \\\"...\\\", \\\"...\\\"]\\n}. Keep each tip 10–20 words, natural, no quotes, no numbering."
+
+        var req = URLRequest(url: apiURL)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue(try authHeader(), forHTTPHeaderField: "Authorization")
+        let body: [String: Any] = [
+            "model": model,
+            "temperature": 0.7,
+            "presence_penalty": 0.6,
+            "response_format": ["type": "json_object"],
+            "messages": [
+                ["role": "system", "content": system],
+                ["role": "user", "content": user]
+            ]
+        ]
+        req.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        let (data, response) = try await URLSession.shared.data(for: req)
+        if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+            if model == "gpt-4o-mini" { return try await generateDailyTips(locale: locale, model: "4o-nano") }
+            let msg = String(data: data, encoding: .utf8) ?? ""
+            throw AIError.server(msg)
+        }
+        struct Choice: Decodable { let message: Msg }
+        struct Msg: Decodable { let role: String; let content: String }
+        struct Resp: Decodable { let choices: [Choice] }
+        let decoded = try JSONDecoder().decode(Resp.self, from: data)
+        guard let content = decoded.choices.first?.message.content else { throw AIError.decoding }
+        if let jsonData = content.data(using: .utf8), let parsed = try? JSONDecoder().decode(DailyTips.self, from: jsonData) {
+            return parsed.tips
+        }
+        if let range = content.range(of: #"\{[\s\S]*\}"#, options: .regularExpression) {
+            let jsonString = String(content[range])
+            if let d2 = jsonString.data(using: .utf8), let parsed2 = try? JSONDecoder().decode(DailyTips.self, from: d2) {
+                return parsed2.tips
+            }
+        }
+        throw AIError.decoding
     }
 
     // MARK: - Daily Topics (non-streaming, JSON)
