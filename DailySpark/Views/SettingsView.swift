@@ -10,14 +10,6 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 Section("Privacy & Storage") {
-                    Toggle("Store training sessions", isOn: Binding(
-                        get: { currentSettings?.storeTranscripts ?? false },
-                        set: { newValue in
-                            ensureSettings()
-                            currentSettings?.storeTranscripts = newValue
-                            try? modelContext.save()
-                        }
-                    ))
                     Button(role: .destructive) {
                         deleteAllUserData()
                     } label: {

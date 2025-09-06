@@ -118,11 +118,8 @@ struct TrainingView: View {
             }
         }
         .sheet(isPresented: $showEndSheet) {
-            // Check permission to save
-            let canSave: Bool = {
-                let fetch = FetchDescriptor<UserSettings>(predicate: #Predicate { _ in true })
-                return (try? modelContext.fetch(fetch).first?.storeTranscripts) ?? false
-            }()
+            // Saving enabled by default; no toggle in Settings
+            let canSave: Bool = true
             if let fb = feedback {
                 SessionEndView(feedback: fb, suggestedLesson: suggestedLesson, canSave: canSave, onSave: {
                     saveSession()
@@ -350,10 +347,7 @@ struct TrainingView: View {
     }
 
     private func saveSession() {
-        // Check settings for opt-in
-        let fetch = FetchDescriptor<UserSettings>(predicate: #Predicate { _ in true })
-        let allowStore = (try? modelContext.fetch(fetch).first?.storeTranscripts) ?? false
-        guard allowStore else { return }
+        // Always allow storing sessions by default
         let session = TrainingSession(scenario: scenarioId, personaId: nil, personaLabel: personaLabel, transcript: transcript, metrics: metrics, feedback: feedback, kept: true, locale: "en")
         session.endedAt = Date()
         modelContext.insert(session)

@@ -11,7 +11,7 @@ final class UserSettings {
     var lastUsedSituationId: String?
     var lastUsedAudienceId: String?
 
-    init(id: UUID = UUID(), storeTranscripts: Bool = false, safetyLevel: String = "standard", locale: String = "en", openAIModel: String? = nil, lastUsedSituationId: String? = nil, lastUsedAudienceId: String? = nil) {
+    init(id: UUID = UUID(), storeTranscripts: Bool = true, safetyLevel: String = "standard", locale: String = "en", openAIModel: String? = nil, lastUsedSituationId: String? = nil, lastUsedAudienceId: String? = nil) {
         self.id = id
         self.storeTranscripts = storeTranscripts
         self.safetyLevel = safetyLevel
@@ -21,4 +21,3 @@ final class UserSettings {
         self.lastUsedAudienceId = lastUsedAudienceId
     }
 }
-
