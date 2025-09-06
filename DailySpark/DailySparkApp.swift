@@ -42,6 +42,8 @@ struct RootView: View {
     @State private var subscriptionsObserver = SubscriptionsObserver()
     var body: some View {
         TabView {
+            DailyView()
+                .tabItem { Label("Daily", systemImage: "star.circle") }
             GeneratorView()
                 .tabItem { Label("Generator", systemImage: "sparkles") }
             TrainingSetupView()

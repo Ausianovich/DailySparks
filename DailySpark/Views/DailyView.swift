@@ -48,7 +48,7 @@ struct DailyView: View {
                 Spacer()
                 if isLoadingTip { ProgressView().scaleEffect(0.8) }
             }
-            .foregroundStyle(.orange)
+            .foregroundStyle(.accent)
             Text(dailyTip.isEmpty ? "—" : dailyTip)
                 .font(.body)
                 .foregroundStyle(.primary)

@@ -4,6 +4,7 @@ import SwiftData
 struct TrainingView: View {
     let scenarioId: String
     let personaLabel: String
+    @State private var partnerName: String = ""
     @State private var input: String = ""
     @FocusState private var inputFocused: Bool
     @State private var transcript: [DialogueTurn] = []
@@ -153,6 +154,7 @@ struct TrainingView: View {
         .onAppear {
             // Occasionally let AI open; otherwise focus input for the user to start
             if transcript.isEmpty && !isStreaming {
+                if partnerName.isEmpty { partnerName = stablePartnerName(for: personaLabel) }
                 if Bool.random() {
                     isStreaming = true
                     streamFromAI()
@@ -205,7 +207,8 @@ struct TrainingView: View {
             let persona = personaLabel
             let context = scenarioId == "corporate" ? "Corporate mixer" : "Light first date"
             do {
-                let stream = AIClient.shared.streamTrainingReply(persona: persona, context: context, transcript: contextTranscript)
+                let name = partnerName.isEmpty ? stablePartnerName(for: personaLabel) : partnerName
+                let stream = AIClient.shared.streamTrainingReply(persona: persona, context: context, assistantName: name, transcript: contextTranscript)
                 for try await delta in stream {
                     // Throttle UI updates: buffer small deltas, flush at ~20Hz
                     streamBuffer.append(delta)
@@ -364,6 +367,14 @@ struct TrainingView: View {
         let lower = text.lowercased()
         let prefixes = ["how ", "what ", "which ", "why ", "кто ", "что ", "как ", "почему "]
         return prefixes.contains { lower.hasPrefix($0) }
+    }
+
+    // Choose a stable, friendly first name for the AI partner, based on the persona label.
+    private func stablePartnerName(for seed: String) -> String {
+        let names = ["Alex", "Taylor", "Jamie", "Sam", "Jordan", "Casey", "Riley", "Morgan", "Drew", "Avery", "Cameron", "Quinn"]
+        var hash = 0
+        for u in seed.unicodeScalars { hash = (hash &* 31 &+ Int(u.value)) & 0x7fffffff }
+        return names[abs(hash) % names.count]
     }
 
     private func findLesson(byTitleApprox title: String) -> MicroLesson? {

@@ -91,12 +91,94 @@ actor AIClient {
         }
     }
 
+    // MARK: - Daily Tip (non-streaming)
+    func generateDailyAdvice(locale: String = "en", model: String = "4o-nano") async throws -> String {
+        let system = "You are DailySpark, a concise small-talk coach. Provide ONE short daily tip (do/don't) to improve starting, maintaining, or ending light conversation. Keep it friendly, practical, and safe."
+        let user = "Locale: \(locale). Return only the tip line, no preface."
+
+        var req = URLRequest(url: apiURL)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue(try authHeader(), forHTTPHeaderField: "Authorization")
+        let body: [String: Any] = [
+            "model": model,
+            "temperature": 0.5,
+            "max_tokens": 80,
+            "messages": [
+                ["role": "system", "content": system],
+                ["role": "user", "content": user]
+            ]
+        ]
+        req.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        let (data, response) = try await URLSession.shared.data(for: req)
+        if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+            if model == "4o-nano" {
+                return try await generateDailyAdvice(locale: locale, model: "gpt-4o-mini")
+            }
+            let msg = String(data: data, encoding: .utf8) ?? ""
+            throw AIError.server(msg)
+        }
+        struct Choice: Decodable { let message: Msg }
+        struct Msg: Decodable { let role: String; let content: String }
+        struct Resp: Decodable { let choices: [Choice] }
+        let decoded = try JSONDecoder().decode(Resp.self, from: data)
+        return decoded.choices.first?.message.content.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    }
+
+    // MARK: - Daily Topics (non-streaming, JSON)
+    struct TopicsResp: Decodable { let topics: [String] }
+    func generateDailyTopics(count: Int = 4, locale: String = "en", model: String = "4o-nano") async throws -> [String] {
+        let system = "You are DailySpark, proposing light, safe, contemporary conversation topics for casual small talk. Avoid sensitive areas; prefer hobbies, places, events, everyday observations."
+        let user = "Locale: \(locale). Provide \(count) concise topic labels suitable for buttons (2–4 words). Return JSON: { \"topics\": [\"...\"] }."
+
+        var req = URLRequest(url: apiURL)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue(try authHeader(), forHTTPHeaderField: "Authorization")
+        let body: [String: Any] = [
+            "model": model,
+            "temperature": 0.7,
+            "response_format": ["type": "json_object"],
+            "messages": [
+                ["role": "system", "content": system],
+                ["role": "user", "content": user]
+            ]
+        ]
+        req.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        let (data, response) = try await URLSession.shared.data(for: req)
+        if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+            if model == "4o-nano" { return try await generateDailyTopics(count: count, locale: locale, model: "gpt-4o-mini") }
+            let msg = String(data: data, encoding: .utf8) ?? ""
+            throw AIError.server(msg)
+        }
+        struct Choice: Decodable { let message: Msg }
+        struct Msg: Decodable { let role: String; let content: String }
+        struct Resp: Decodable { let choices: [Choice] }
+        let decoded = try JSONDecoder().decode(Resp.self, from: data)
+        guard let content = decoded.choices.first?.message.content,
+              let jsonData = content.data(using: .utf8) else { throw AIError.decoding }
+        do {
+            let parsed = try JSONDecoder().decode(TopicsResp.self, from: jsonData)
+            return parsed.topics
+        } catch {
+            if let range = content.range(of: #"\{[\s\S]*\}"#, options: .regularExpression) {
+                let jsonString = String(content[range])
+                if let data2 = jsonString.data(using: .utf8), let parsed = try? JSONDecoder().decode(TopicsResp.self, from: data2) {
+                    return parsed.topics
+                }
+            }
+            throw AIError.decoding
+        }
+    }
+
     // MARK: - Training (streaming)
-    func streamTrainingReply(persona: String, context: String, transcript: [DialogueTurn], locale: String = "en", model: String = "gpt-4o-mini") -> AsyncThrowingStream<String, Error> {
+    func streamTrainingReply(persona: String, context: String, assistantName: String, transcript: [DialogueTurn], locale: String = "en", model: String = "gpt-4o-mini") -> AsyncThrowingStream<String, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 do {
-                    let system = "You role‑play a realistic persona in a casual setting. Keep replies 1–3 sentences, friendly, natural, and varied. Do not always end with a question. Aim for ~40% of turns to end with a question; otherwise end with a light observation, acknowledgement, or invitation that the user can build on. Never ask two questions in a row; if the user just asked a question, answer briefly and add a small statement or bridge without asking another question. Seed subtle hooks the user can pick up. Respect safety policy. Persona: \(persona) Context: \(context)"
+                    let system = "You are role‑playing as \(assistantName), a realistic persona for casual small talk. Speak in first person (\"I\"). Keep a consistent identity and name across the whole chat. If you start the chat, use a short, natural opener; you may introduce yourself as \"I'm \(assistantName)\" in one brief phrase if it fits the scenario. If the user shares their name, acknowledge it once and use it naturally; do not ask for their name again. Never ask two questions in a row: if the user just asked a question, answer briefly and add a small statement or bridge without another question. Aim for about 40% of turns to end with a question; otherwise end with a light observation, acknowledgement, or invitation the user can build on. Keep 1–3 sentences; vary tone; be friendly and natural. Avoid sensitive topics per safety policy. Persona details: \(persona). Context: \(context)."
 
                     var messages: [[String: String]] = [["role": "system", "content": system]]
                     // Include last few turns
