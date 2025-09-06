@@ -2,14 +2,21 @@ import SwiftUI
 import SwiftData
 
 struct SettingsView: View {
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.openURL) private var openURL
     @Query private var settingsList: [UserSettings]
 
     var body: some View {
         NavigationStack {
             Form {
                 Section("Privacy & Storage") {
+                    Button {
+                        if let url = URL(string: "https://example.com/privacy") {
+                            openURL(url)
+                        }
+                    } label: {
+                        Label("Privacy Policy", systemImage: "lock.shield")
+                    }
                     Button(role: .destructive) {
                         deleteAllUserData()
                     } label: {
@@ -18,7 +25,6 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Settings")
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close", action: { dismiss() }) } }
             .onAppear { ensureSettings() }
         }
     }
