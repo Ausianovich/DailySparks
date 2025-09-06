@@ -19,6 +19,7 @@ struct TrainingView: View {
     @State private var streamBuffer: String = ""
     @State private var lastStreamFlush: Date = .now
     @State private var streamTask: Task<Void, Never>? = nil
+    @State private var didAutoSave: Bool = false
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
@@ -118,8 +119,8 @@ struct TrainingView: View {
             }
         }
         .sheet(isPresented: $showEndSheet) {
-            // Saving enabled by default; no toggle in Settings
-            let canSave: Bool = true
+            // Auto-save is enabled; hide explicit save button
+            let canSave: Bool = false
             if let fb = feedback {
                 SessionEndView(feedback: fb, suggestedLesson: suggestedLesson, canSave: canSave, onSave: {
                     saveSession()
@@ -301,6 +302,7 @@ struct TrainingView: View {
         isEnding = true
         showEndSheet = true
         feedback = nil
+        didAutoSave = false
         Task {
             do {
                 let ai = try await AIClient.shared.generateFeedback(transcript: transcript, metrics: metrics)
@@ -313,6 +315,10 @@ struct TrainingView: View {
                     self.feedback = fb
                     self.suggestedLesson = lessonMatch
                     self.isEnding = false
+                    if !self.didAutoSave {
+                        self.saveSession()
+                        self.didAutoSave = true
+                    }
                 }
             } catch {
                 await MainActor.run {
@@ -489,7 +495,7 @@ private struct SessionEndView: View {
                 if canSave {
                     Section { Button("Save Session", action: onSave) }
                 } else {
-                    Section { Text("Enable saving in Settings to store sessions.").font(.caption).foregroundStyle(.secondary) }
+                    Section { Text("Session saved automatically.").font(.caption).foregroundStyle(.secondary) }
                 }
             }
             .navigationTitle("Summary")
