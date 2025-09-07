@@ -1,50 +1,33 @@
 import SwiftUI
 
 struct TrainingSetupView: View {
-    @State private var candidatePersonas: [PersonaOption] = TrainingPresets.randomPersonas(count: 7)
+    @State private var candidatePersonas: [PersonaOption] = TrainingPresets.randomPersonas(count: 8)
     @State private var selectedPersona: PersonaOption? = nil
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section("Choose who to chat with") {
-                    ForEach(candidatePersonas) { p in
-                        HStack(alignment: .center) {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(p.title)
-                                    .font(.body)
-                                    .contentTransition(.opacity)
-                                Text(p.description)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .contentTransition(.opacity)
-                            }
-                            Spacer()
-                            if selectedPersona?.id == p.id {
-                                Image(systemName: "checkmark")
-                                    .foregroundStyle(.tint)
-                                    .transition(.scale.combined(with: .opacity))
-                            }
-                        }
-                        .contentShape(Rectangle())
-                        .onTapGesture { selectedPersona = p }
-                        .transition(.asymmetric(insertion: .move(edge: .top).combined(with: .opacity),
-                                                removal: .opacity))
+            ZStack {
+                Color(UIColor.systemGroupedBackground).ignoresSafeArea()
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        header
+                        grid
+                        startButton
                     }
-                }
-
-                Section {
-                    NavigationLink {
-                        TrainingView(scenarioId: selectedPersona?.scenarioId ?? "corporate", personaLabel: (selectedPersona?.title ?? "Partner"))
-                    } label: {
-                        Text("Start Training")
-                            .frame(maxWidth: .infinity, alignment: .center)
-                    }
-                    .disabled(selectedPersona == nil)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
+                    .padding(.bottom, 32)
                 }
             }
             .navigationTitle("Training Setup")
-            .refreshable { await regenerate() }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(action: { Task { await regenerate() } }) {
+                        Label("Shuffle", systemImage: "arrow.triangle.2.circlepath")
+                    }
+                }
+            }
             .onAppear {
                 if selectedPersona == nil { selectedPersona = candidatePersonas.first }
             }
@@ -52,7 +35,7 @@ struct TrainingSetupView: View {
     }
 
     private func regenerate() async {
-        let newList = TrainingPresets.randomPersonas(count: 7)
+        let newList = TrainingPresets.randomPersonas(count: 8)
 
         // 1) Animate removal of all rows and clear selection
         await MainActor.run {
@@ -80,4 +63,107 @@ struct TrainingSetupView: View {
             }
         }
     }
+}
+
+// MARK: - Subviews
+private extension TrainingSetupView {
+    var header: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Who do you want to chat with?")
+                .font(.title2.bold())
+            Text("Pick a persona to start a realistic practice chat.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    var grid: some View {
+        LazyVStack(alignment: .leading, spacing: 12) {
+            ForEach(candidatePersonas) { p in
+                PersonaCard(persona: p, selected: selectedPersona?.id == p.id) {
+                    withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) { selectedPersona = p }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+
+    var startButton: some View {
+        HStack {
+            let disabled = (selectedPersona == nil)
+            NavigationLink(destination: TrainingView(scenarioId: selectedPersona?.scenarioId ?? "corporate", personaLabel: (selectedPersona?.title ?? "Partner"))) {
+                HStack(spacing: 10) {
+                    Image(systemName: "paperplane.fill")
+                        .font(.system(size: 16, weight: .bold))
+                    Text("Start Training")
+                        .font(.headline.weight(.semibold))
+                }
+                .foregroundStyle(.white)
+                .padding(.vertical, 14)
+                .frame(maxWidth: .infinity)
+                .background(
+                    LinearGradient(colors: [.orange, .pink], startPoint: .topLeading, endPoint: .bottomTrailing)
+                        .opacity(disabled ? 0.6 : 1)
+                )
+                .clipShape(Capsule())
+                .shadow(color: .orange.opacity(disabled ? 0.0 : 0.25), radius: 10, x: 0, y: 6)
+            }
+            .disabled(disabled)
+        }
+    }
+}
+
+private struct PersonaCard: View {
+    let persona: PersonaOption
+    var selected: Bool
+    var onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    ZStack {
+                        Circle().fill(scenarioColor.opacity(0.2))
+                        Image(systemName: scenarioIcon)
+                            .foregroundStyle(scenarioColor)
+                            .font(.system(size: 14, weight: .semibold))
+                    }
+                    .frame(width: 28, height: 28)
+                    Text(persona.title)
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                    Spacer()
+                }
+                Text(persona.description)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Spacer(minLength: 0)
+//                HStack { Spacer(); Image(systemName: "chevron.right").foregroundStyle(scenarioColor) }
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color(UIColor.secondarySystemGroupedBackground))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(selected ? scenarioColor.opacity(0.8) : Color(UIColor.separator).opacity(0.25), lineWidth: selected ? 2 : 1)
+            )
+            .overlay(alignment: .topTrailing) {
+                if selected {
+                    Image(systemName: "checkmark.circle.fill").foregroundStyle(scenarioColor)
+                        .background(Circle().fill(Color(UIColor.secondarySystemGroupedBackground)))
+                        .offset(x: 6, y: -6)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var scenarioIcon: String { persona.scenarioId == "corporate" ? "briefcase.fill" : "heart.fill" }
+    private var scenarioColor: Color { persona.scenarioId == "corporate" ? .blue : .pink }
 }
