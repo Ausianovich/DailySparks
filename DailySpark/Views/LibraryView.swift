@@ -236,18 +236,57 @@ struct LibraryView: View {
 struct LessonDetailView: View {
     let lesson: MicroLesson
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                Text(lesson.title).font(.title2).bold()
-                Text(lesson.body).font(.body)
-                if !lesson.tags.isEmpty {
-                    Text(lesson.tags.joined(separator: ", "))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+        ZStack {
+            Color(UIColor.systemGroupedBackground).ignoresSafeArea()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    // Header
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(lesson.title)
+                            .font(.title2.weight(.bold))
+                        if !lesson.tags.isEmpty {
+                            WrapTags(tags: lesson.tags)
+                        }
+                    }
+
+                    // Body card
+                    Text(lesson.body)
+                        .font(.body)
+                        .lineSpacing(1.3)
+                        .padding(12)
+                        .background(RoundedRectangle(cornerRadius: 16).fill(Color(UIColor.secondarySystemGroupedBackground)))
+                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color(UIColor.separator).opacity(0.25)))
                 }
-            }.padding()
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+                .padding(.bottom, 32)
+            }
         }
         .navigationTitle("Lesson")
         .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+private struct WrapTags: View {
+    let tags: [String]
+    var body: some View {
+        // Simple flow layout using flexible lines
+        VStack(alignment: .leading, spacing: 8) {
+            var currentRow: [String] = []
+            let all = tags
+            // Naive wrap: split every 3 items per row for now
+            ForEach(stride(from: 0, to: all.count, by: 3).map { Array(all[$0..<min($0+3, all.count)]) }, id: \.self) { row in
+                HStack(spacing: 6) {
+                    ForEach(row, id: \.self) { t in
+                        Text(t)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .padding(.vertical, 4)
+                            .padding(.horizontal, 8)
+                            .background(Capsule().fill(Color.secondary.opacity(0.12)))
+                    }
+                }
+            }
+        }
     }
 }
