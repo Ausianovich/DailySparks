@@ -4,53 +4,94 @@ struct TrainingSessionDetailView: View {
     let session: TrainingSession
 
     var body: some View {
-        List {
-            Section("Summary") {
-                HStack {
-                    Label(session.scenario.capitalized, systemImage: iconName)
-                    Spacer()
-                    Text(dateString(session.startedAt)).foregroundStyle(.secondary)
-                }
-                if let p = session.personaLabel { Text("Persona: \(p)") }
-            }
-
-            Section("Metrics") {
-                LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
-                    MetricTile(title: "Turns", value: String(session.metrics.turns), color: .accentColor)
-                    MetricTile(title: "Short answers", value: String(session.metrics.shortAnswersCount), color: .orange)
-                    MetricTile(title: "Open questions", value: String(session.metrics.openQuestionsCount), color: .blue)
-                    MetricTile(title: "Hints shown", value: String(session.metrics.hintsShown), color: .teal)
-                }
-                .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
-                .listRowBackground(Color.clear)
-            }
-
-            if let fb = session.feedback {
-                Section("Feedback") {
-                    if !fb.strengths.isEmpty {
-                        ForEach(fb.strengths, id: \.self) { Text($0) }
+        ZStack {
+            Color(UIColor.systemGroupedBackground).ignoresSafeArea()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    // Summary
+                    HStack(alignment: .center, spacing: 12) {
+                        ZStack {
+                            Circle().fill((session.scenario == "corporate" ? Color.blue : Color.pink).opacity(0.2))
+                            Image(systemName: iconName).foregroundStyle(session.scenario == "corporate" ? .blue : .pink)
+                        }
+                        .frame(width: 36, height: 36)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(summaryTitle)
+                                .font(.headline)
+                            Text(dateString(session.startedAt))
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
                     }
-                    Text(fb.suggestion)
-                }
-            }
+                    .padding(12)
+                    .background(RoundedRectangle(cornerRadius: 16).fill(Color(UIColor.secondarySystemGroupedBackground)))
+                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color(UIColor.separator).opacity(0.25)))
 
-            Section("Transcript") {
-                VStack(spacing: 10) {
-                    ForEach(Array(session.transcript.enumerated()), id: \.element.id) { index, turn in
-                        let isUser = (turn.role == .user)
-                        let prevRole: DialogueTurn.Role? = index > 0 ? session.transcript[index-1].role : nil
-                        let showName = prevRole != turn.role
-                        ChatBubbleRow(text: turn.text, isUser: isUser, name: prefix(for: turn.role), showName: showName)
-                            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
-                            .listRowSeparator(.hidden)
+                    // Metrics
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Metrics").font(.title2.bold())
+                        LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                            MetricTile(title: "Turns", value: String(session.metrics.turns), color: .orange)
+                            MetricTile(title: "Short answers", value: String(session.metrics.shortAnswersCount), color: .pink)
+                            MetricTile(title: "Open questions", value: String(session.metrics.openQuestionsCount), color: .blue)
+                            MetricTile(title: "Hints shown", value: String(session.metrics.hintsShown), color: .teal)
+                        }
+                    }
+
+                    // Feedback
+                    if let fb = session.feedback {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Feedback").font(.title2.bold())
+                            VStack(alignment: .leading, spacing: 8) {
+                                if !fb.strengths.isEmpty {
+                                    ForEach(fb.strengths, id: \.self) { s in
+                                        HStack(spacing: 8) {
+                                            Image(systemName: "checkmark.seal.fill").foregroundStyle(.green)
+                                            Text(s)
+                                        }
+                                    }
+                                }
+                                HStack(spacing: 8) {
+                                    Image(systemName: "lightbulb.fill").foregroundStyle(.yellow)
+                                    Text(fb.suggestion)
+                                }
+                            }
+                            .padding(12)
+                            .background(RoundedRectangle(cornerRadius: 16).fill(Color(UIColor.secondarySystemGroupedBackground)))
+                            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color(UIColor.separator).opacity(0.25)))
+                        }
+                    }
+
+                    // Transcript
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Transcript").font(.title2.bold())
+                        VStack(spacing: 10) {
+                            ForEach(Array(session.transcript.enumerated()), id: \.element.id) { index, turn in
+                                let isUser = (turn.role == .user)
+                                let prevRole: DialogueTurn.Role? = index > 0 ? session.transcript[index-1].role : nil
+                                let showName = prevRole != turn.role
+                                ChatBubbleRow(text: turn.text, isUser: isUser, name: prefix(for: turn.role), showName: showName)
+                            }
+                        }
+                        .padding(8)
+                        .background(RoundedRectangle(cornerRadius: 16).fill(Color(UIColor.secondarySystemGroupedBackground)))
+                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color(UIColor.separator).opacity(0.25)))
                     }
                 }
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+                .padding(.bottom, 32)
             }
         }
         .navigationTitle("Session")
         .navigationBarTitleDisplayMode(.inline)
     }
 
+    private var summaryTitle: String {
+        if let p = session.personaLabel { return "\(session.scenario.capitalized): \(p)" }
+        return session.scenario.capitalized
+    }
     private var iconName: String { session.scenario == "corporate" ? "briefcase" : "heart" }
     private func dateString(_ d: Date) -> String {
         let df = DateFormatter(); df.dateStyle = .medium; df.timeStyle = .short; return df.string(from: d)
@@ -76,11 +117,21 @@ private struct ChatBubbleRow: View {
                 if isUser { Spacer(minLength: 40) }
                 Text(MarkdownHelper.attributed(from: text))
                     .font(.body)
-                    .padding(.vertical, 8)
-                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 14)
                     .background(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(isUser ? Color.accentColor : Color.secondary.opacity(0.15))
+                        Group {
+                            if isUser {
+                                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                    .fill(LinearGradient(colors: [.orange, .pink], startPoint: .topLeading, endPoint: .bottomTrailing))
+                            } else {
+                                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                    .fill(Color(UIColor.secondarySystemGroupedBackground))
+                            }
+                        }
+                    )
+                    .overlay(
+                        Group { if !isUser { RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color(UIColor.separator).opacity(0.25)) } }
                     )
                     .foregroundStyle(isUser ? Color.white : Color.primary)
                     .contextMenu {
@@ -117,7 +168,12 @@ private struct MetricTile: View {
         .frame(maxWidth: .infinity, minHeight: 72, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(color.opacity(0.12))
+                .fill(Color(UIColor.secondarySystemGroupedBackground))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(color.opacity(0.35))
         )
     }
 }
+
