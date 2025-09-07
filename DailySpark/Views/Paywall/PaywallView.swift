@@ -1,5 +1,6 @@
 import SwiftUI
 import StoreKit
+import WebKit
 
 struct PaywallView: View {
     var onSuccess: (() -> Void)? = nil
@@ -53,6 +54,8 @@ struct PaywallView: View {
         .storeButton(.hidden, for: .cancellation)
         .storeButton(.visible, for: .restorePurchases)
         .subscriptionStorePolicyForegroundStyle(.promoText)
+        .subscriptionStorePolicyDestination(for: .privacyPolicy, destination: privacyPolicy)
+        .subscriptionStorePolicyDestination(for: .termsOfService, destination: termsOfService)
         .subscriptionStoreControlStyle(.buttons)
         .subscriptionStoreButtonLabel(.action)
         .background(LinearGradient(colors: [Color.orange.opacity(0.9), Color.pink.opacity(0.8)], startPoint: .topLeading, endPoint: .bottomTrailing))
@@ -77,5 +80,37 @@ struct PaywallView: View {
         })
         .interactiveDismissDisabled(true)
     }
+    
+    @ViewBuilder
+    func privacyPolicy() -> some View {
+        WebView(url: URL(string: "https://ausianovich.github.io/DailySparksPrivacy/")!)
+            .ignoresSafeArea(edges: .bottom)
+            .padding(.horizontal)
+    }
+    
+    @ViewBuilder
+    func termsOfService() -> some View {
+        WebView(url: URL(string: "https://ausianovich.github.io/DailySparksPrivacy/EULA/")!)
+            .ignoresSafeArea(edges: .bottom)
+            .padding(.horizontal)
+    }
 }
 
+struct WebView: UIViewRepresentable {
+ 
+    private let webView: WKWebView
+    private let url: URL
+    
+    init(url: URL) {
+        webView = WKWebView(frame: .zero)
+        self.url = url
+    }
+    
+    func makeUIView(context: Context) -> WKWebView {
+        return webView
+    }
+    
+    func updateUIView(_ uiView: WKWebView, context: Context) {
+        webView.load(URLRequest(url: url))
+    }
+}
