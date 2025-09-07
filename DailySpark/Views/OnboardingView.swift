@@ -27,7 +27,7 @@ struct OnboardingView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                // Dynamic, subtle gradient background that shifts per page
+                // Return to dynamic gradient background (looked better)
                 backgroundView
                     .ignoresSafeArea()
 
@@ -63,14 +63,26 @@ struct OnboardingView: View {
                     .tabViewStyle(.page(indexDisplayMode: .never))
                     .animation(.easeInOut, value: page)
 
-                    // Bottom control for pages 0–2: wide Next / Let's start button
+                    // Bottom control: keep gradient CTA to match app buttons
                     VStack(spacing: 12) {
                         pageIndicator
                         Button(action: primaryAction) {
-                            Text(page == 2 ? "Let's start" : "Next").bold()
-                                .frame(maxWidth: .infinity)
+                            HStack(spacing: 10) {
+                                Image(systemName: page == 2 ? "checkmark.seal.fill" : "arrow.right.circle.fill")
+                                    .font(.system(size: 16, weight: .bold))
+                                Text(page == 2 ? "Let's start" : "Next")
+                                    .font(.headline.weight(.semibold))
+                            }
+                            .foregroundStyle(.white)
+                            .padding(.vertical, 14)
+                            .frame(maxWidth: .infinity)
+                            .background(
+                                LinearGradient(colors: [.orange, .pink], startPoint: .topLeading, endPoint: .bottomTrailing)
+                            )
+                            .clipShape(Capsule())
+                            .shadow(color: .orange.opacity(0.25), radius: 10, x: 0, y: 6)
                         }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(.plain)
                         .sensoryFeedback(.impact(weight: .light), trigger: page)
                     }
                     .padding()
