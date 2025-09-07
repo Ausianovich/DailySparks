@@ -141,7 +141,6 @@ private struct PersonaCard: View {
                     .fixedSize(horizontal: false, vertical: true)
 
                 Spacer(minLength: 0)
-//                HStack { Spacer(); Image(systemName: "chevron.right").foregroundStyle(scenarioColor) }
             }
             .padding(14)
             .frame(maxWidth: .infinity, alignment: .leading)
