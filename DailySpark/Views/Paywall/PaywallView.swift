@@ -41,7 +41,7 @@ struct PaywallView: View {
                                 .foregroundStyle(Color.bullets)
                             Text(text)
                                 .multilineTextAlignment(.leading)
-                                .foregroundStyle(Color.promoText)
+                                .foregroundStyle(Color.bullets)
                         }
                         .font(.title3)
                         .bold()
@@ -54,8 +54,8 @@ struct PaywallView: View {
         .storeButton(.visible, for: .restorePurchases)
         .subscriptionStorePolicyForegroundStyle(.promoText)
         .subscriptionStoreControlStyle(.buttons)
-        .subscriptionStoreButtonLabel(.multiline)
-        .background(LinearGradient(colors: [Color.accentColor, .white], startPoint: .top, endPoint: .bottom))
+        .subscriptionStoreButtonLabel(.action)
+        .background(LinearGradient(colors: [Color.orange.opacity(0.9), Color.pink.opacity(0.8)], startPoint: .topLeading, endPoint: .bottomTrailing))
         .tint(Color.bullets)
         .onInAppPurchaseCompletion { _, result in
             switch result {
