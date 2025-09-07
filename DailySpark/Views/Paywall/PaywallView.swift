@@ -52,9 +52,9 @@ struct PaywallView: View {
         }
         .storeButton(.hidden, for: .cancellation)
         .storeButton(.visible, for: .restorePurchases)
-        .subscriptionStorePolicyForegroundStyle(.white)
+        .subscriptionStorePolicyForegroundStyle(.promoText)
         .subscriptionStoreControlStyle(.buttons)
-        .subscriptionStoreButtonLabel(.action)
+        .subscriptionStoreButtonLabel(.multiline)
         .background(LinearGradient(colors: [Color.accentColor, .white], startPoint: .top, endPoint: .bottom))
         .tint(Color.bullets)
         .onInAppPurchaseCompletion { _, result in
