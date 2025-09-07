@@ -1,5 +1,7 @@
 import SwiftUI
 import SwiftData
+import StoreKit
+import UIKit
 
 struct TrainingView: View {
     let scenarioId: String
@@ -144,9 +146,11 @@ struct TrainingView: View {
             if let fb = feedback {
                 SessionEndView(feedback: fb, suggestedLesson: suggestedLesson, canSave: canSave, onSave: {
                     saveSession()
+                    requestAppStoreReview()
                     showEndSheet = false
                     dismiss()
                 }, onClose: {
+                    requestAppStoreReview()
                     showEndSheet = false
                     dismiss()
                 })
@@ -185,6 +189,8 @@ struct TrainingView: View {
         .onDisappear {
             // Ensure we stop any in-flight stream when leaving the screen
             cancelStream()
+            // Best-effort rating prompt when leaving training (Apple may ignore)
+            requestAppStoreReview()
         }
     }
 
@@ -386,6 +392,17 @@ struct TrainingView: View {
         let lower = text.lowercased()
         let prefixes = ["how ", "what ", "which ", "why ", "кто ", "что ", "как ", "почему "]
         return prefixes.contains { lower.hasPrefix($0) }
+    }
+
+    private func requestAppStoreReview() {
+        #if canImport(UIKit)
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        if let scene = scenes.first(where: { $0.activationState == .foregroundActive }) {
+            SKStoreReviewController.requestReview(in: scene)
+        } else if let anyScene = scenes.first {
+            SKStoreReviewController.requestReview(in: anyScene)
+        }
+        #endif
     }
 
     // Choose a stable, friendly first name for the AI partner, based on the persona label.
