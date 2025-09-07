@@ -24,9 +24,12 @@ struct TrainingView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        VStack {
+        ZStack {
+            Color(UIColor.systemGroupedBackground).ignoresSafeArea()
+            VStack {
             ScrollViewReader { proxy in
                 ScrollView(.vertical) {
                     LazyVStack(alignment: .leading, spacing: 8) {
@@ -55,11 +58,11 @@ struct TrainingView: View {
             }
             // Repair Kit (above input)
             HStack(spacing: 8) {
-                RepairChip(title: "Rephrase", recommended: recommendedRepair() == .rephrase) { repair(.rephrase) }
+                RepairChip(title: "Rephrase", systemImage: "arrow.2.squarepath", recommended: recommendedRepair() == .rephrase) { repair(.rephrase) }
                     .disabled(isStreaming || isRepairLoading)
-                RepairChip(title: "Pivot", recommended: recommendedRepair() == .pivot) { repair(.pivot) }
+                RepairChip(title: "Pivot", systemImage: "arrow.triangle.2.circlepath", recommended: recommendedRepair() == .pivot) { repair(.pivot) }
                     .disabled(isStreaming || isRepairLoading)
-                RepairChip(title: "Open Q", recommended: recommendedRepair() == .open) { repair(.open) }
+                RepairChip(title: "Open Q", systemImage: "questionmark.circle", recommended: recommendedRepair() == .open) { repair(.open) }
                     .disabled(isStreaming || isRepairLoading)
                 if isRepairLoading { ProgressView().scaleEffect(0.8) }
             }
@@ -68,11 +71,16 @@ struct TrainingView: View {
             HStack(alignment: .center, spacing: 8) {
                 TextField("Type your message…", text: $input, axis: .vertical)
                     .textFieldStyle(.plain)
+                    .padding(EdgeInsets(top: 0, leading: 6, bottom: 0, trailing: 6))
                     .lineLimit(2)
-                    .padding(8)
+                    .padding(10)
                     .background(
-                        Capsule()
-                            .stroke(.accent, lineWidth: 1)
+                        RoundedRectangle(cornerRadius: 18)
+                            .fill(Color(UIColor.secondarySystemBackground))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 18)
+                            .stroke(Color(UIColor.separator).opacity(0.25))
                     )
                     .focused($inputFocused)
                     .textInputAutocapitalization(.never)
@@ -82,29 +90,40 @@ struct TrainingView: View {
                 // Right action button: Stop (streaming) / Retry (error) / Send (idle)
                 if isStreaming {
                     Button(action: cancelStream) {
-                        Image(systemName: "stop.circle")
-                            .foregroundStyle(.red)
-                            .font(.system(size: 18, weight: .semibold))
+                        Image(systemName: "stop.fill")
+                            .foregroundStyle(.white)
+                            .font(.system(size: 16, weight: .bold))
+                            .padding(8)
+                            .background(Circle().fill(Color.red))
                     }
                     .accessibilityLabel("Stop")
                 } else if errorMessage != nil {
                     Button(action: retryStream) {
                         Image(systemName: "arrow.counterclockwise")
-                            .foregroundStyle(.accent)
-                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .font(.system(size: 16, weight: .bold))
+                            .padding(8)
+                            .background(
+                                Circle().fill(LinearGradient(colors: [.orange, .pink], startPoint: .topLeading, endPoint: .bottomTrailing))
+                            )
                     }
                     .accessibilityLabel("Retry")
                 } else {
                     Button(action: send) {
                         Image(systemName: "paperplane.fill")
-                            .foregroundStyle(.accent)
-                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .font(.system(size: 16, weight: .bold))
+                            .padding(8)
+                            .background(
+                                Circle().fill(LinearGradient(colors: [.orange, .pink], startPoint: .topLeading, endPoint: .bottomTrailing))
+                            )
                     }
                     .disabled(input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     .accessibilityLabel("Send")
                 }
             }
             .padding()
+        }
         }
         .navigationTitle("Training")
         .navigationBarTitleDisplayMode(.inline)
@@ -406,13 +425,14 @@ private struct ChatMessageRow: View {
                     if useMarkdown { Text(MarkdownHelper.attributed(from: text)) } else { Text(text) }
                 }
                 .font(.body)
-                .padding(.vertical, 8)
-                .padding(.horizontal, 12)
+                .foregroundStyle(.white)
+                .padding(.vertical, 10)
+                .padding(.horizontal, 14)
                 .background(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(Color.accentColor)
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(LinearGradient(colors: [.orange, .pink], startPoint: .topLeading, endPoint: .bottomTrailing))
                 )
-                .foregroundStyle(Color.white)
+                .shadow(color: .orange.opacity(0.2), radius: 6, x: 0, y: 3)
                 .frame(maxWidth: .infinity, alignment: .trailing)
             } else {
                 // Assistant avatar
@@ -425,6 +445,16 @@ private struct ChatMessageRow: View {
                         if useMarkdown { Text(MarkdownHelper.attributed(from: text)) } else { Text(text) }
                     }
                     .font(.body)
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 14)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .fill(Color(UIColor.secondarySystemGroupedBackground))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .stroke(Color(UIColor.separator).opacity(0.25))
+                    )
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 Spacer(minLength: 48)
@@ -468,15 +498,29 @@ private struct TypingIndicatorBubble: View {
 
 private struct RepairChip: View {
     let title: String
+    var systemImage: String? = nil
     var recommended: Bool = false
     var action: () -> Void
     var body: some View {
         Button(action: action) {
-            Text(title)
-                .font(.footnote)
-                .padding(.vertical, 6)
-                .padding(.horizontal, 10)
-                .background(Capsule().fill(recommended ? Color.accentColor.opacity(0.18) : Color.secondary.opacity(0.15)))
+            HStack(spacing: 6) {
+                if let systemImage { Image(systemName: systemImage) }
+                Text(title)
+            }
+            .font(.footnote.weight(.semibold))
+            .padding(.vertical, 8)
+            .padding(.horizontal, 12)
+            .foregroundStyle(recommended ? .white : .primary)
+            .background(
+                Group {
+                    if recommended {
+                        LinearGradient(colors: [.orange, .pink], startPoint: .topLeading, endPoint: .bottomTrailing)
+                    } else {
+                        Color.secondary.opacity(0.15)
+                    }
+                }
+            )
+            .clipShape(Capsule())
         }
         .buttonStyle(.plain)
     }
