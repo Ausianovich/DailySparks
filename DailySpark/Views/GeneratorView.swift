@@ -10,6 +10,8 @@ struct GeneratorView: View {
     @State private var toastText: String? = nil
     @State private var tone: Tone = .friendly
     @State private var length: Length = .short
+    @State private var showMoreSituation: Bool = false
+    @State private var showMoreAudience: Bool = false
 
     @Environment(\.modelContext) private var modelContext
 
@@ -20,62 +22,58 @@ struct GeneratorView: View {
                     .ignoresSafeArea()
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
-                    // Context inputs
+                    // Context inputs (with inline presets)
                     CardSection(title: "Context") {
                         VStack(alignment: .leading, spacing: 10) {
                             LabeledInput(label: "Situation", text: $situation)
+                            InlinePresetList(
+                                title: "Quick picks",
+                                items: Presets.situations,
+                                selected: situation,
+                                isExpanded: $showMoreSituation,
+                                onSelect: { situation = $0 }
+                            )
                             LabeledInput(label: "Audience", text: $audience)
+                            InlinePresetList(
+                                title: "Quick picks",
+                                items: Presets.audiences,
+                                selected: audience,
+                                isExpanded: $showMoreAudience,
+                                onSelect: { audience = $0 }
+                            )
                             ToneLengthControls(tone: $tone, length: $length)
                             HStack {
+                                let disabled = isLoading || situation.isEmpty || audience.isEmpty
                                 Button(action: generate) {
-                                    HStack(spacing: 8) {
-                                        if isLoading { ProgressView() }
-                                        Text(isLoading ? "Generating…" : "Generate Sparks").bold()
+                                    HStack(spacing: 10) {
+                                        if isLoading {
+                                            ProgressView().tint(.white)
+                                        } else {
+                                            Image(systemName: "wand.and.stars")
+                                                .font(.system(size: 16, weight: .semibold))
+                                        }
+                                        Text(isLoading ? "Generating…" : "Generate Sparks")
+                                            .font(.headline.weight(.semibold))
                                     }
+                                    .foregroundStyle(.white)
+                                    .padding(.vertical, 14)
                                     .frame(maxWidth: .infinity)
+                                    .background(
+                                        LinearGradient(colors: [Color.orange, Color.pink], startPoint: .topLeading, endPoint: .bottomTrailing)
+                                            .opacity(disabled ? 0.6 : 1)
+                                    )
+                                    .clipShape(Capsule())
+                                    .shadow(color: Color.orange.opacity(disabled ? 0.0 : 0.25), radius: 10, x: 0, y: 6)
                                 }
-                                .disabled(isLoading || situation.isEmpty || audience.isEmpty)
-                                .buttonStyle(.borderedProminent)
+                                .disabled(disabled)
+                                .buttonStyle(.plain)
                                 .padding(.bottom, 12)
                             }
                         }
                         .padding(.horizontal, 12)
                     }
 
-                    // Presets summary and navigation to full picker
-                    CardSection(title: "Presets") {
-                        VStack(alignment: .leading, spacing: 10) {
-                            HStack(alignment: .center, spacing: 8) {
-                                Text("Situation").font(.caption).foregroundStyle(.secondary)
-                                Spacer()
-                                SummaryChip(text: situation.isEmpty ? "Not set" : situation)
-                            }
-                            .padding(.horizontal, 12)
-
-                            HStack(alignment: .center, spacing: 8) {
-                                Text("Audience").font(.caption).foregroundStyle(.secondary)
-                                Spacer()
-                                SummaryChip(text: audience.isEmpty ? "Not set" : audience)
-                            }
-                            .padding(.horizontal, 12)
-
-                            NavigationLink {
-                                PresetPickerView(selectedSituation: $situation, selectedAudience: $audience)
-                            } label: {
-                                HStack {
-                                    Spacer()
-                                    Label("Choose Presets", systemImage: "slider.horizontal.3")
-                                        .font(.footnote)
-                                        .padding(.vertical, 8)
-                                        .padding(.horizontal, 12)
-                                        .background(Capsule().fill(Color.secondary.opacity(0.12)))
-                                    Spacer()
-                                }
-                            }
-                            .buttonStyle(.plain)
-                        }
-                        .padding(.bottom, 10)
-                    }
+                    // Presets card removed — presets are integrated above
 
                     // Results header (no card) and list
                     HStack(alignment: .center) {
@@ -437,7 +435,124 @@ private func typeDisplayName(for typeRaw: String) -> String {
 }
 
 // Reusable UI bits
-// (Removed old ChipButton and presets grid UI; now using a dedicated picker screen)
+
+private struct InlinePresetList: View {
+    let title: String
+    let items: [String]
+    let selected: String
+    @Binding var isExpanded: Bool
+    var onSelect: (String) -> Void
+
+    private var ordered: [String] {
+        guard let idx = items.firstIndex(of: selected), !selected.isEmpty else { return items }
+        var arr = items
+        arr.remove(at: idx)
+        return [selected] + arr
+    }
+    private var display: [String] { isExpanded ? ordered : Array(ordered.prefix(2)) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(title).font(.caption).foregroundStyle(.secondary)
+                Spacer()
+                if items.count > 2 {
+                    Button(action: { withAnimation(.easeInOut) { isExpanded.toggle() } }) {
+                        Label(isExpanded ? "Show less" : "Show more", systemImage: isExpanded ? "chevron.up" : "chevron.down")
+                    }
+                    .font(.footnote)
+                    .buttonStyle(.plain)
+                }
+            }
+            LazyVStack(alignment: .leading, spacing: 8) {
+                ForEach(display, id: \.self) { item in
+                    InlinePresetRow(text: item, isSelected: item == selected) {
+                        onSelect(item)
+                        withAnimation(.easeInOut) { isExpanded = false }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct InlinePresetRow: View {
+    let text: String
+    var isSelected: Bool
+    var action: () -> Void
+
+    private var parts: (category: String?, label: String) {
+        let comps = text.split(separator: "—", maxSplits: 1).map { $0.trimmingCharacters(in: .whitespaces) }
+        if comps.count == 2 { return (String(comps[0]), String(comps[1])) }
+        return (nil, text)
+    }
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                if let cat = parts.category, !cat.isEmpty {
+                    ZStack {
+                        Circle().fill(categoryColor(cat).opacity(0.25))
+                        Image(systemName: categoryIcon(cat))
+                            .foregroundStyle(categoryColor(cat))
+                            .font(.system(size: 14, weight: .semibold))
+                    }
+                    .frame(width: 28, height: 28)
+                }
+                Text(parts.label)
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(2)
+                Spacer()
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "chevron.right")
+                    .foregroundStyle(isSelected ? .accent : .secondary)
+            }
+            .padding(.vertical, 10)
+            .padding(.horizontal, 12)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(categoryColor(parts.category ?? "").opacity(0.12))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke((isSelected ? Color.accentColor : categoryColor(parts.category ?? "")).opacity(isSelected ? 0.6 : 0.28))
+            )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private func categoryIcon(_ category: String) -> String {
+    switch category.lowercased() {
+    case "date": return "heart.fill"
+    case "corporate", "work": return "briefcase.fill"
+    case "friends": return "person.2.fill"
+    case "family": return "house.fill"
+    case "neighbors": return "building.2.fill"
+    case "travel": return "airplane"
+    case "events": return "party.popper"
+    case "fitness": return "figure.walk"
+    case "hobby": return "paintpalette.fill"
+    case "culture": return "theatermasks.fill"
+    default: return "sparkles"
+    }
+}
+
+private func categoryColor(_ category: String) -> Color {
+    switch category.lowercased() {
+    case "date": return .pink
+    case "corporate", "work": return .blue
+    case "friends": return .purple
+    case "family": return .orange
+    case "neighbors": return .teal
+    case "travel": return .mint
+    case "events": return .red
+    case "fitness": return .green
+    case "hobby": return .brown
+    case "culture": return .indigo
+    default: return .gray
+    }
+}
 
 private struct LabeledInput: View {
     let label: String
