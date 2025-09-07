@@ -10,12 +10,11 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 Section("Privacy & Storage") {
-                    Button {
-                        if let url = URL(string: "https://example.com/privacy") {
-                            openURL(url)
-                        }
-                    } label: {
+                    NavigationLink(destination: privacyPolicy()) {
                         Label("Privacy Policy", systemImage: "lock.shield")
+                    }
+                    NavigationLink(destination: termsOfService()) {
+                        Label("License Agreement", systemImage: "doc.plaintext")
                     }
                     Button(role: .destructive) {
                         deleteAllUserData()
@@ -27,6 +26,20 @@ struct SettingsView: View {
             .navigationTitle("Settings")
             .onAppear { ensureSettings() }
         }
+    }
+    
+    @ViewBuilder
+    func privacyPolicy() -> some View {
+        WebView(url: URL(string: "https://ausianovich.github.io/DailySparksPrivacy/")!)
+            .ignoresSafeArea(edges: .bottom)
+            .padding(.horizontal)
+    }
+    
+    @ViewBuilder
+    func termsOfService() -> some View {
+        WebView(url: URL(string: "https://ausianovich.github.io/DailySparksPrivacy/EULA/")!)
+            .ignoresSafeArea(edges: .bottom)
+            .padding(.horizontal)
     }
 
     private var currentSettings: UserSettings? { settingsList.first }
