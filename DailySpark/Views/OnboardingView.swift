@@ -35,30 +35,47 @@ struct OnboardingView: View {
                     TabView(selection: $page) {
                         OBPage(
                             systemImage: "sparkles",
-                            title: "Break the ice",
-                            subtitle: "Generate light, safe conversation sparks for any situation.",
+                            title: "Meet DailySpark",
+                            subtitle: "Light, safe small‑talk help in seconds.",
                             tint: themes[safe: 0]?.tint ?? .accentColor,
-                            animate: animateIcon
+                            animate: animateIcon,
+                            bullets: [
+                                "Get 3–5 tailored conversation sparks",
+                                "Practice short, realistic chats with feedback",
+                                "Keep favorites for later"
+                            ]
                         )
                         .tag(0)
 
-                    OBPage(
-                        systemImage: "bubble.left.and.text.bubble.right",
-                        title: "Practice real chats",
-                        subtitle: "Train with realistic personas and get gentle, actionable feedback.",
-                        tint: themes[safe: 1]?.tint ?? .accentColor,
-                        animate: animateIcon
-                    )
-                    .tag(1)
+                        OBPage(
+                            systemImage: "list.bullet",
+                            title: "How it works",
+                            subtitle: "Tell us the context — we’ll do the rest.",
+                            tint: themes[safe: 1]?.tint ?? .accentColor,
+                            animate: animateIcon,
+                            bullets: [
+                                "Pick situation and audience",
+                                "Generate fresh questions and observations",
+                                "Tap to Copy, Save, or Share",
+                                "Train in 3–6 short turns"
+                            ]
+                        )
+                        .tag(1)
 
-                    OBPage(
-                        systemImage: "book",
-                        title: "Learn quick tips",
-                        subtitle: "Short micro‑lessons to improve small talk fundamentals.",
-                        tint: themes[safe: 2]?.tint ?? .accentColor,
-                        animate: animateIcon
-                    )
-                    .tag(2)
+                        OBPage(
+                            systemImage: "lock.shield",
+                            title: "Privacy & Safety",
+                            subtitle: "You’re in control of what’s stored.",
+                            tint: themes[safe: 2]?.tint ?? .accentColor,
+                            animate: animateIcon,
+                            bullets: [
+                                "No transcripts saved by default",
+                                "Opt in to store training history",
+                                "Safety filters avoid sensitive topics",
+                                "OpenAI key stored in Keychain (optional)"
+                            ]
+                        )
+                        .tag(2)
                     }
                     .tabViewStyle(.page(indexDisplayMode: .never))
                     .animation(.easeInOut, value: page)
@@ -70,7 +87,7 @@ struct OnboardingView: View {
                             HStack(spacing: 10) {
                                 Image(systemName: page == 2 ? "checkmark.seal.fill" : "arrow.right.circle.fill")
                                     .font(.system(size: 16, weight: .bold))
-                                Text(page == 2 ? "Let's start" : "Next")
+                                Text(page == 2 ? "Get Started" : "Next")
                                     .font(.headline.weight(.semibold))
                             }
                             .foregroundStyle(.white)
@@ -144,6 +161,7 @@ private struct OBPage: View {
     let subtitle: String
     var tint: Color = .accentColor
     var animate: Bool = false
+    var bullets: [String] = []
 
     @State private var float: Bool = false
 
@@ -180,6 +198,26 @@ private struct OBPage: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
+
+            if !bullets.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(bullets.indices, id: \.self) { i in
+                        HStack(alignment: .firstTextBaseline, spacing: 10) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(tint)
+                                .font(.subheadline)
+                                .accessibilityHidden(true)
+                            Text(bullets[i])
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.top, 4)
+            }
 
             Spacer()
         }
@@ -247,7 +285,12 @@ private extension OnboardingView {
 #Preview {
     OBPage(
         systemImage: "sparkles",
-        title: "Break the ice",
-        subtitle: "Generate light, safe conversation sparks for any situation."
+        title: "Meet DailySpark",
+        subtitle: "Light, safe small‑talk help in seconds.",
+        bullets: [
+            "Get 3–5 tailored conversation sparks",
+            "Practice short, realistic chats with feedback",
+            "Keep favorites for later"
+        ]
     )
 }
