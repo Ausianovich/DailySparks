@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
 struct DailyView: View {
     @Environment(\.modelContext) private var modelContext
@@ -129,38 +130,33 @@ struct DailyView: View {
     
     private var topicsSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack { Text("Topics").font(.title2.bold()); Spacer(); if isLoadingTopics { ProgressView().scaleEffect(0.8) } }
+            HStack {
+                Text("Fresh Topics").font(.title2.bold())
+                Spacer()
+                if isLoadingTopics {
+                    ProgressView().scaleEffect(0.8)
+                } else {
+                    Button {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        loadTopics()
+                    } label: {
+                        Label("Shuffle", systemImage: "arrow.triangle.2.circlepath")
+                            .labelStyle(.iconOnly)
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Shuffle topics")
+                }
+            }
             VStack(alignment: .leading, spacing: 12) {
                 ForEach(topics.prefix(4), id: \.self) { t in
                     NavigationLink(value: t) {
-                        HStack(spacing: 12) {
-                            ZStack {
-                                Circle().fill(topicColor(for: t).opacity(0.25))
-                                Image(systemName: topicIcon(for: t))
-                                    .foregroundStyle(topicColor(for: t))
-                                    .font(.system(size: 16, weight: .semibold))
-                            }
-                            .frame(width: 30, height: 30)
-                            Text(t)
-                                .font(.title3.weight(.semibold))
-                                .foregroundStyle(topicColor(for: t))
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .foregroundStyle(topicColor(for: t))
-                        }
-                        .padding(.vertical, 14)
-                        .padding(.horizontal, 16)
-                        .background(
-                            RoundedRectangle(cornerRadius: 20)
-                                .fill(topicColor(for: t).opacity(0.18))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 20)
-                                .stroke(topicColor(for: t).opacity(0.28))
-                        )
+                        TopicRow(title: t, icon: topicIcon(for: t), color: topicColor(for: t))
                     }
+                    .transition(.opacity)
                 }
             }
+            .animation(.easeInOut(duration: 0.25), value: topics)
         }
         .navigationDestination(for: String.self) { topic in
             let persona = TrainingPresets.randomPersonas(count: 1).first
@@ -196,9 +192,11 @@ struct DailyView: View {
         Task {
             let arr = (try? await AIClient.shared.generateDailyTopics(count: 4, locale: currentLocaleCode())) ?? defaultTopics.shuffled().prefix(4).map { $0 }
             await MainActor.run {
-                self.topics = Array(arr)
-                self.isLoadingTopics = false
-                self.cachedTopicsJSON = encodeTopics(self.topics)
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    self.topics = Array(arr)
+                    self.isLoadingTopics = false
+                    self.cachedTopicsJSON = encodeTopics(self.topics)
+                }
             }
         }
     }
@@ -280,6 +278,41 @@ struct DailyView: View {
         "Hobbies",
         "Travel Tips"
     ]
+}
+
+// MARK: - Topic Row
+private struct TopicRow: View {
+    let title: String
+    let icon: String
+    let color: Color
+
+    var body: some View {
+        HStack(spacing: 12) {
+            ZStack {
+                Circle().fill(color.opacity(0.25))
+                Image(systemName: icon)
+                    .foregroundStyle(color)
+                    .font(.system(size: 16, weight: .semibold))
+            }
+            .frame(width: 30, height: 30)
+            Text(title)
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(color)
+            Spacer()
+            Image(systemName: "chevron.right")
+                .foregroundStyle(color)
+        }
+        .padding(.vertical, 14)
+        .padding(.horizontal, 16)
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(color.opacity(0.18))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 20)
+                .stroke(color.opacity(0.28))
+        )
+    }
 }
 
 // MARK: - Growth Analyzer

@@ -75,8 +75,7 @@ struct OnboardingView: View {
                             bullets: [
                                 "No transcripts saved by default",
                                 "Opt in to store training history",
-                                "Safety filters avoid sensitive topics",
-                                "OpenAI key stored in Keychain (optional)"
+                                "Safety filters avoid sensitive topics"
                             ]
                         )
                         .tag(2)
