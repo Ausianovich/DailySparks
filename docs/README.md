@@ -11,3 +11,4 @@ This folder contains the working product documentation:
 - roadmap.md — Phased delivery plan
 - communication.md — Language rules for collaboration
  - ai_integration.md — Provider, streaming, JSON formats, fallbacks
+ - onboarding.md — Onboarding flow, copy, and behavior
