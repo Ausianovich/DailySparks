@@ -21,6 +21,10 @@ struct OnboardingView: View {
         OBTheme(
             gradient: [Color.orange.opacity(0.35), Color.pink.opacity(0.15), Color.clear],
             tint: .orange
+        ),
+        OBTheme(
+            gradient: [Color.teal.opacity(0.35), Color.green.opacity(0.15), Color.clear],
+            tint: .teal
         )
     ]
 
@@ -76,6 +80,13 @@ struct OnboardingView: View {
                             ]
                         )
                         .tag(2)
+
+                        // 4) Training preview: quick chat, up to 3 user turns
+                        OBTrainingPreviewPage(
+                            tint: themes[safe: 3]?.tint ?? .accentColor,
+                            onFinish: { presentPaywall() }
+                        )
+                        .tag(3)
                     }
                     .tabViewStyle(.page(indexDisplayMode: .never))
                     .animation(.easeInOut, value: page)
@@ -83,30 +94,32 @@ struct OnboardingView: View {
                     // Bottom control: keep gradient CTA to match app buttons
                     VStack(spacing: 12) {
                         pageIndicator
-                        Button(action: primaryAction) {
-                            HStack(spacing: 10) {
-                                Image(systemName: page == 2 ? "checkmark.seal.fill" : "arrow.right.circle.fill")
-                                    .font(.system(size: 16, weight: .bold))
-                                Text(page == 2 ? "Get Started" : "Next")
-                                    .font(.headline.weight(.semibold))
+                        if page < 3 {
+                            Button(action: primaryAction) {
+                                HStack(spacing: 10) {
+                                    Image(systemName: page == 2 ? "checkmark.seal.fill" : "arrow.right.circle.fill")
+                                        .font(.system(size: 16, weight: .bold))
+                                    Text(page == 2 ? "Get Started" : "Next")
+                                        .font(.headline.weight(.semibold))
+                                }
+                                .foregroundStyle(.white)
+                                .padding(.vertical, 14)
+                                .frame(maxWidth: .infinity)
+                                .background(
+                                    LinearGradient(colors: [.orange, .pink], startPoint: .topLeading, endPoint: .bottomTrailing)
+                                )
+                                .clipShape(Capsule())
+                                .shadow(color: .orange.opacity(0.25), radius: 10, x: 0, y: 6)
                             }
-                            .foregroundStyle(.white)
-                            .padding(.vertical, 14)
-                            .frame(maxWidth: .infinity)
-                            .background(
-                                LinearGradient(colors: [.orange, .pink], startPoint: .topLeading, endPoint: .bottomTrailing)
-                            )
-                            .clipShape(Capsule())
-                            .shadow(color: .orange.opacity(0.25), radius: 10, x: 0, y: 6)
+                            .buttonStyle(.plain)
+                            .sensoryFeedback(.impact(weight: .light), trigger: page)
                         }
-                        .buttonStyle(.plain)
-                        .sensoryFeedback(.impact(weight: .light), trigger: page)
                     }
                     .padding()
                     .transition(.opacity)
                 }
             }
-            .navigationTitle(page < 3 ? "Welcome" : "Subscribe")
+            .navigationTitle("Welcome")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 if !showPaywall {
@@ -125,10 +138,10 @@ struct OnboardingView: View {
     }
 
     private func next() {
-        page = min(page + 1, 2)
+        page = min(page + 1, 3)
     }
     private func primaryAction() {
-        if page < 2 {
+        if page < 3 {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
             next()
         } else {
@@ -270,7 +283,7 @@ private extension OnboardingView {
 
     var pageIndicator: some View {
         HStack(spacing: 8) {
-            ForEach(0..<3) { i in
+            ForEach(0..<4) { i in
                 Capsule()
                     .fill((i == page ? (themes[safe: i]?.tint ?? .accentColor) : Color.secondary.opacity(0.25)))
                     .frame(width: i == page ? 28 : 8, height: 8)
@@ -278,7 +291,213 @@ private extension OnboardingView {
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Page \(page + 1) of 3")
+        .accessibilityLabel("Page \(page + 1) of 4")
+    }
+}
+
+// MARK: - Training Preview Page
+private struct OBTrainingPreviewPage: View {
+    var tint: Color = .accentColor
+    var onFinish: () -> Void
+
+    struct Msg: Identifiable { let id = UUID(); let isUser: Bool; var text: String }
+
+    @State private var messages: [Msg] = [
+        .init(isUser: false, text: "Hi! I’m Alex. Want to try a super short practice chat?")
+    ]
+    @State private var input: String = ""
+    @State private var thinking: Bool = false
+    @State private var isStreaming: Bool = false
+    @State private var streamTask: Task<Void, Never>? = nil
+    @FocusState private var focused: Bool
+
+    private var userTurnsCount: Int { messages.filter { $0.isUser }.count }
+    private var limitReached: Bool { userTurnsCount >= 3 }
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Spacer(minLength: 8)
+            // Header
+            Text("Try a quick chat")
+                .font(.title3.bold())
+                .foregroundStyle(LinearGradient(colors: [tint, .primary], startPoint: .topLeading, endPoint: .bottomTrailing))
+            Text("Say up to three lines to get a feel.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
+            // Chat area
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 8) {
+                    ForEach(messages) { m in
+                        HStack(alignment: .bottom) {
+                            if m.isUser { Spacer(minLength: 40) }
+                            OBPreviewMessageRow(isUser: m.isUser, text: m.text, tint: tint)
+                                .frame(maxWidth: .infinity, alignment: m.isUser ? .trailing : .leading)
+                            if !m.isUser { Spacer(minLength: 40) }
+                        }
+                    }
+                    if thinking {
+                        HStack {
+                            ProgressView().scaleEffect(0.8)
+                            Text("Typing…").font(.caption).foregroundStyle(.secondary)
+                            Spacer()
+                        }
+                        .padding(.leading, 8)
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+            }
+
+            if limitReached {
+                Button(action: { cancelStream(); onFinish() }) {
+                    HStack(spacing: 10) {
+                        Image(systemName: "checkmark.seal.fill").font(.system(size: 16, weight: .bold))
+                        Text("Finish and get started")
+                            .font(.headline.weight(.semibold))
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.vertical, 12)
+                    .frame(maxWidth: .infinity)
+                    .background(
+                        LinearGradient(colors: [.orange, .pink], startPoint: .topLeading, endPoint: .bottomTrailing)
+                    )
+                    .clipShape(Capsule())
+                    .shadow(color: .orange.opacity(0.25), radius: 10, x: 0, y: 6)
+                }
+                .padding(.horizontal)
+            } else {
+                HStack(spacing: 8) {
+                    TextField("Type a short line…", text: $input, axis: .vertical)
+                        .textFieldStyle(.plain)
+                        .padding(EdgeInsets(top: 0, leading: 6, bottom: 0, trailing: 6))
+                        .lineLimit(2)
+                        .padding(10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 18).fill(Color(UIColor.secondarySystemBackground))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 18).stroke(Color(UIColor.separator).opacity(0.25))
+                        )
+                        .focused($focused)
+                        .submitLabel(.send)
+                        .onSubmit { send() }
+
+                    Button(action: send) {
+                        Image(systemName: "paperplane.fill")
+                            .foregroundStyle(.white)
+                            .font(.system(size: 16, weight: .bold))
+                            .padding(8)
+                            .background(Circle().fill(LinearGradient(colors: [.orange, .pink], startPoint: .topLeading, endPoint: .bottomTrailing)))
+                    }
+                    .disabled(isStreaming || input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+                .padding(.horizontal)
+                .padding(.bottom, 4)
+            }
+        }
+        .onChange(of: userTurnsCount) { _, new in
+            if new >= 3 { focused = false }
+        }
+    }
+
+    private func send() {
+        let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty, !limitReached, !isStreaming else { return }
+        messages.append(.init(isUser: true, text: text))
+        input = ""
+        startStreamingReply()
+    }
+
+    private func startStreamingReply() {
+        // Cancel previous stream if any
+        streamTask?.cancel()
+        isStreaming = true
+        thinking = true
+        // Snapshot transcript before adding placeholder
+        let transcriptTurns: [DialogueTurn] = messages.map { m in
+            DialogueTurn(role: m.isUser ? .user : .ai, text: m.text)
+        }
+        // Add placeholder AI message
+        messages.append(.init(isUser: false, text: ""))
+        let aiIndex = messages.count - 1
+        let persona = "Friendly, curious conversation partner; keeps things light, warm, and safe."
+        let context = "Casual small talk (onboarding preview)"
+        let assistantName = "Alex"
+        streamTask = Task {
+            do {
+                let stream = await AIClient.shared.streamTrainingReply(
+                    persona: persona,
+                    context: context,
+                    assistantName: assistantName,
+                    transcript: transcriptTurns,
+                    locale: "en",
+                    model: "gpt-4o-mini"
+                )
+                for try await delta in stream {
+                    await MainActor.run {
+                        if aiIndex < messages.count {
+                            messages[aiIndex].text.append(contentsOf: delta)
+                            thinking = false
+                        }
+                    }
+                }
+            } catch {
+                // Graceful fallback to a simple canned reply if API is unavailable
+                let fallback = "Got it! What do you like most about it?"
+                await MainActor.run {
+                    if aiIndex < messages.count { messages[aiIndex].text = fallback }
+                }
+            }
+            await MainActor.run {
+                isStreaming = false
+                thinking = false
+            }
+        }
+    }
+
+    private func cancelStream() {
+        streamTask?.cancel()
+        streamTask = nil
+        isStreaming = false
+        thinking = false
+    }
+}
+
+// Simple message bubble for the onboarding training preview
+private struct OBPreviewMessageRow: View {
+    let isUser: Bool
+    let text: String
+    var tint: Color = .accentColor
+
+    var body: some View {
+        Group {
+            if isUser {
+                Text(text)
+                    .font(.body)
+                    .foregroundStyle(.white)
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .fill(LinearGradient(colors: [.orange, .pink], startPoint: .topLeading, endPoint: .bottomTrailing))
+                    )
+            } else {
+                Text(text)
+                    .font(.body)
+                    .foregroundStyle(.primary)
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .fill(Color(UIColor.secondarySystemBackground))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .stroke(Color(UIColor.separator).opacity(0.2))
+                    )
+            }
+        }
     }
 }
 
