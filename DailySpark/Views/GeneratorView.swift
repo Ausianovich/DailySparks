@@ -12,6 +12,7 @@ struct GeneratorView: View {
     @State private var length: Length = .short
     @State private var showMoreSituation: Bool = false
     @State private var showMoreAudience: Bool = false
+    @FocusState private var inputFocused: Bool
 
     @Environment(\.modelContext) private var modelContext
 
@@ -25,7 +26,7 @@ struct GeneratorView: View {
                     // Context inputs (with inline presets)
                     CardSection(title: "Context") {
                         VStack(alignment: .leading, spacing: 10) {
-                            LabeledInput(label: "Situation", text: $situation)
+                            LabeledInput(label: "Situation", text: $situation, focused: $inputFocused)
                             InlinePresetList(
                                 title: "Quick picks",
                                 items: Presets.situations,
@@ -33,7 +34,7 @@ struct GeneratorView: View {
                                 isExpanded: $showMoreSituation,
                                 onSelect: { situation = $0 }
                             )
-                            LabeledInput(label: "Audience", text: $audience)
+                            LabeledInput(label: "Audience", text: $audience, focused: $inputFocused)
                             InlinePresetList(
                                 title: "Quick picks",
                                 items: Presets.audiences,
@@ -126,10 +127,19 @@ struct GeneratorView: View {
                     .padding(.top, 12)
                     .padding(.bottom, 100)
                 }
+                .scrollDismissesKeyboard(.interactively)
+                .contentShape(Rectangle())
+                .onTapGesture { inputFocused = false }
             }
             .navigationTitle("Generator")
             .alert("Error", isPresented: .constant(errorMessage != nil)) { Button("OK") { errorMessage = nil } } message: { Text(errorMessage ?? "") }
             // no bottom toolbar; primary action lives inside Context card per HIG
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") { inputFocused = false }
+                }
+            }
         }
             
     }
@@ -557,12 +567,14 @@ private func categoryColor(_ category: String) -> Color {
 private struct LabeledInput: View {
     let label: String
     @Binding var text: String
+    var focused: FocusState<Bool>.Binding
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(label).font(.caption).foregroundStyle(.secondary)
             ZStack(alignment: .trailing) {
                 TextField(label, text: $text, axis: .vertical)
                     .lineLimit(1...4)
+                    .focused(focused)
                     .padding(10)
                     .background(
                         RoundedRectangle(cornerRadius: 10)
