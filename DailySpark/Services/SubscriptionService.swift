@@ -22,22 +22,31 @@ enum SubscriptionService {
     }
 }
 
+@MainActor
 @Observable
 final class SubscriptionsObserver {
-    private(set) var disabled: Bool = true
+    var disabled: Bool = true
     private var updates: Task<Void, Never>? = nil
 
     init() {
-        observeTransactionUpdates()
+        updates = newTransactionListenerTask()
     }
     
     deinit {
         if ProcessInfo.processInfo.arguments.contains("-subscribed") {
-            disabled = false
+            Task { [weak self] in
+                await MainActor.run {
+                    self?.disabled = false
+                }
+            }
             return
         }
         
-        updates?.cancel()
+        Task { [weak self] in
+            await MainActor.run {
+                self?.updates?.cancel()
+            }
+        }
     }
     
     func updateStatuses() async {
@@ -57,33 +66,47 @@ final class SubscriptionsObserver {
         
         disabled = statuses.isEmpty
     }
- 
-    private func observeTransactionUpdates() {
-        updates = Task(priority: .background) {
+    
+    private func newTransactionListenerTask() -> Task<Void, Never> {
+        Task(priority: .background) {
             for await verificationResult in Transaction.updates {
-                await self.handle(updatedTransaction: verificationResult)
+                self.handle(updatedTransaction: verificationResult)
             }
         }
     }
     
-    private func handle(updatedTransaction verificationResult: VerificationResult<StoreKit.Transaction>) async {
+    private func handle(updatedTransaction verificationResult: VerificationResult<Transaction>) {
         guard case .verified(let transaction) = verificationResult else {
             return
         }
         
-        if transaction.revocationDate != nil {
-            disabled = true
-            await transaction.finish()
+        if let revocationDate = transaction.revocationDate {
+            // Remove access to the product identified by transaction.productID.
+            // Transaction.revocationReason provides details about
+            // the revoked transaction.
+            
+            Task {
+                await MainActor.run {
+                    disabled = true
+                }
+            }
         } else if let expirationDate = transaction.expirationDate,
-                  expirationDate < .now {
-            disabled = true
-            await transaction.finish()
+                  expirationDate < Date() {
+            // Do nothing, this subscription is expired.
             return
         } else if transaction.isUpgraded {
+            // Do nothing, there is an active transaction
+            // for a higher level of service.
             return
         } else {
-            disabled = false
-            await transaction.finish()
+            // Provide access to the product identified by
+            // transaction.productID.
+            
+            Task {
+                await MainActor.run {
+                    disabled = false
+                }
+            }
         }
     }
 }

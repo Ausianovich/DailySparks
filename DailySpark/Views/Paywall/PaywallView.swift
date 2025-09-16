@@ -62,13 +62,29 @@ struct PaywallView: View {
         .tint(Color.bullets)
         .onInAppPurchaseCompletion { _, result in
             switch result {
-            case .success(.success):
-                onSuccess?()
+            case .success(let purchase):
+                switch purchase {
+                case .success(let subscription):
+                    switch subscription {
+                    case .verified(let transaction):
+                        let isActive = transaction.revocationDate == nil && (transaction.expirationDate.map { $0 > .now } ?? true)
+                        if isActive {
+                            onSuccess?()
+                        }
+                        
+                        Task { await transaction.finish() }
+                    case .unverified(let transaction, _):
+                        Task { await transaction.finish() }
+                        break
+                    }
+                case .pending:
+                    break
+                default:
+                    break
+                }
             case .failure(let error):
                 self.error = error
                 errorIsPresented = true
-            default:
-                break
             }
         }
         .alert(isPresented: $errorIsPresented, content: {
