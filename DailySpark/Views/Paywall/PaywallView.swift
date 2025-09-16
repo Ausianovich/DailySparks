@@ -57,7 +57,7 @@ struct PaywallView: View {
         .subscriptionStorePolicyDestination(for: .privacyPolicy, destination: privacyPolicy)
         .subscriptionStorePolicyDestination(for: .termsOfService, destination: termsOfService)
         .subscriptionStoreControlStyle(.buttons)
-        .subscriptionStoreButtonLabel(.action)
+        .subscriptionStoreButtonLabel(.multiline)
         .background(LinearGradient(colors: [Color.orange.opacity(0.9), Color.pink.opacity(0.8)], startPoint: .topLeading, endPoint: .bottomTrailing))
         .tint(Color.bullets)
         .onInAppPurchaseCompletion { _, result in
