@@ -9,6 +9,7 @@ struct SettingsView: View {
     
     @State private var privacyIsPresented: Bool = false
     @State private var termsIsPresented: Bool = false
+    @State private var successRemoveDataIsPresented: Bool = false
 
     var body: some View {
         NavigationStack {
@@ -25,10 +26,14 @@ struct SettingsView: View {
                     } label: {
                         Label("License Agreement", systemImage: "doc.plaintext")
                     }
+                }
+                
+                Section {
                     Button(role: .destructive) {
                         deleteAllUserData()
                     } label: {
-                        Text("Delete All User Data")
+                        Label("Delete User History", systemImage: "trash")
+                            .foregroundStyle(Color(.systemRed))
                     }
                 }
             }
@@ -36,6 +41,11 @@ struct SettingsView: View {
             .onAppear { ensureSettings() }
             .sheet(isPresented: $privacyIsPresented) { privacyPolicy() }
             .sheet(isPresented: $termsIsPresented) { termsOfService() }
+            .alert("All user history has been deleted", isPresented: $successRemoveDataIsPresented) {
+                Button("OK") {
+                    successRemoveDataIsPresented = false
+                }
+            }
         }
     }
     
@@ -66,6 +76,8 @@ struct SettingsView: View {
             let sessions = try modelContext.fetch(FetchDescriptor<TrainingSession>())
             for s in sessions { modelContext.delete(s) }
             try modelContext.save()
+            
+            successRemoveDataIsPresented = true
         } catch {
             // No-op: keep UX simple
         }
